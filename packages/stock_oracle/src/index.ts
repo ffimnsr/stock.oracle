@@ -18,7 +18,8 @@ const ENVIRONMENT = process.env.NODE_ENV || "production";
 const PORT = process.env.PORT || 80;
 
 const BATCH_INSERT_CHUNK_SIZE = 30;
-const STOCK_DATA_TABLE = ENVIRONMENT === "production" ? "eod_stock_data" : "eod_stock_data_test";
+const STOCK_DATA_TABLE =
+  ENVIRONMENT === "production" ? "eod_stock_data" : "eod_stock_data_test";
 const STOCK_SYMBOLS_TABLE = "stock_symbols";
 const STOCK_SECURITY_TYPES_TABLE = "security_types";
 const STOCK_SECTORS_TABLE = "sectors";
@@ -43,43 +44,86 @@ const typeDefs = gql`
   type StockSymbol {
     id: ID
     symbol: String
-    name: String
-    status: Int
-    listedDate: String
-    sectorId: Int
-    subsectorId: Int
-    createdAt: String
-    updatedAt: String
+    companyId: Int
+    securitySymbolId: Int
   }
 
   type StockDataItem {
-    id: ID
     date: String
     open: Float
     high: Float
     low: Float
     close: Float
-    Volume: Float
-    symbol: String
+    volume: Float
   }
 
   type Query {
-    hello: String
+    ehlo: String
     symbols: [StockSymbol]
-    stockData: [StockDataItem]
+    stockData(symbol: String!): [StockDataItem]
   }
 `;
 
+type Context = {
+  db: knex;
+};
+
 const resolvers = {
   Query: {
-    hello: () => "Hello, World!",
-    symbols: () => {},
+    ehlo: () => "Hello, World!",
+    sectors: async (_parent: any, _args: any, context: Context, _info: any) => {
+      const { db } = context;
+      const result = await db
+        .from(STOCK_SYMBOLS_TABLE)
+        .select("id", "symbol", "company_id", "security_symbol_id");
+
+      return result;
+    },
+    subsectors: async (
+      _parent: any,
+      _args: any,
+      context: Context,
+      _info: any
+    ) => {
+      const { db } = context;
+      const result = await db
+        .from(STOCK_SYMBOLS_TABLE)
+        .select("id", "symbol", "company_id", "security_symbol_id");
+
+      return result;
+    },
+    symbols: async (_parent: any, _args: any, context: Context, _info: any) => {
+      const { db } = context;
+      const result = await db
+        .from(STOCK_SYMBOLS_TABLE)
+        .select("id", "symbol", "company_id", "security_symbol_id");
+
+      return result;
+    },
+    stockData: async (
+      _parent: any,
+      args: any,
+      context: Context,
+      _info: any
+    ) => {
+      const { db } = context;
+      const result = await db
+        .from(STOCK_DATA_TABLE)
+        .where({ symbol: args.symbol })
+        .orderBy("date", "desc")
+        .select("date", "open", "high", "low", "close", "volume");
+
+      return result;
+    },
   },
 };
 
 const server = new ApolloServer({
   typeDefs,
   resolvers,
+  context: ({ req }) => ({
+    db: req.app.get("dao") as knex,
+  }),
 });
 const app = express();
 
@@ -104,39 +148,46 @@ app.get("/", (_req: Request, res: Response) => {
   res.send("Stock Oracle");
 });
 
-app.post("/management/fill_security_types", async (req: Request, res: Response) => {
-  try {
-    const db = req.app.get("dao") as knex;
-    const securityTypesRaw = await getSecurityTypes();
-    const securityTypes = securityTypesRaw.map((securityType: any) => ({
-      "code": securityType.code,
-      "name": securityType.name,
-    }));
+app.post(
+  "/management/fill_security_types",
+  async (req: Request, res: Response) => {
+    try {
+      const db = req.app.get("dao") as knex;
+      const securityTypesRaw = await getSecurityTypes();
+      const securityTypes = securityTypesRaw.map((securityType: any) => ({
+        code: securityType.code,
+        name: securityType.name,
+      }));
 
-    await db.batchInsert(STOCK_SECURITY_TYPES_TABLE, securityTypes, BATCH_INSERT_CHUNK_SIZE);
+      await db.batchInsert(
+        STOCK_SECURITY_TYPES_TABLE,
+        securityTypes,
+        BATCH_INSERT_CHUNK_SIZE
+      );
 
-    res.json({
-      success: true,
-      message: "Successfully filled security types to database.",
-    });    
-  } catch (e) {
-    log.error(e.message);
-    res.status(400).json({
-      success: false,
-      message: "Unable to fill security types: " + e.message,
-    });
+      res.json({
+        success: true,
+        message: "Successfully filled security types to database.",
+      });
+    } catch (e) {
+      log.error(e.message);
+      res.status(400).json({
+        success: false,
+        message: "Unable to fill security types: " + e.message,
+      });
+    }
   }
-});
+);
 
 app.post("/management/fill_sectors", async (req: Request, res: Response) => {
   try {
     const db = req.app.get("dao") as knex;
     const sectorsRaw = await getSectors();
     const sectors = sectorsRaw.map((sector: any) => ({
-      "index_id": sector.indexId,
-      "code": sector.indexAbb,
-      "name": sector.indexName,
-      "is_sectoral": sector.isSectoral === "Y" ? 1 : 0,
+      index_id: sector.indexId,
+      code: sector.indexAbb,
+      name: sector.indexName,
+      is_sectoral: sector.isSectoral === "Y" ? 1 : 0,
     }));
 
     await db.batchInsert(STOCK_SECTORS_TABLE, sectors, BATCH_INSERT_CHUNK_SIZE);
@@ -144,7 +195,7 @@ app.post("/management/fill_sectors", async (req: Request, res: Response) => {
     res.json({
       success: true,
       message: "Successfully filled sectors to database.",
-    });    
+    });
   } catch (e) {
     log.error(e.message);
     res.status(400).json({
@@ -159,17 +210,21 @@ app.post("/management/fill_subsectors", async (req: Request, res: Response) => {
     const db = req.app.get("dao") as knex;
     const sectorsRaw = await getSubsectors();
     const sectors = sectorsRaw.map((sector: any) => ({
-      "index_id": sector.indexId,
-      "name": sector.subsectorName,
-      "internal_pse_id": sector.subsectorID,
+      index_id: sector.indexId,
+      name: sector.subsectorName,
+      internal_pse_id: sector.subsectorID,
     }));
 
-    await db.batchInsert(STOCK_SUBSECTORS_TABLE, sectors, BATCH_INSERT_CHUNK_SIZE);
+    await db.batchInsert(
+      STOCK_SUBSECTORS_TABLE,
+      sectors,
+      BATCH_INSERT_CHUNK_SIZE
+    );
 
     res.json({
       success: true,
       message: "Successfully filled subsectors to database.",
-    });    
+    });
   } catch (e) {
     log.error(e.message);
     res.status(400).json({
@@ -179,173 +234,193 @@ app.post("/management/fill_subsectors", async (req: Request, res: Response) => {
   }
 });
 
-app.post("/management/fill_listed_companies", async (req: Request, res: Response) => {
-  try {
-    const db = req.app.get("dao") as knex;
-    const listedCompaniesRaw = await getListedCompanies();
-    const listedCompanies = listedCompaniesRaw.map((company: any) => ({
-      "symbol": company.securitySymbol,
-      "name": company.securityName,
-      "status": 1,
-      "listed_date": moment(company.listingDate).toDate(),
-      "security_status": company.securityStatus,
-      "security_type": company.securityType,
-      "subsector_id": company.subsectorName,
-      "sector_id": company.indexName,
-      "company_id": company.companyId,
-      "security_symbol_id": company.securitySymbolId,
-    }));
-
-    await db.batchInsert(STOCK_SYMBOLS_TABLE, listedCompanies, BATCH_INSERT_CHUNK_SIZE);
-
-    res.json({
-      success: true,
-      message: "Successfully filled listed companies to database.",
-    });    
-  } catch (e) {
-    log.error(e.message);
-    res.status(400).json({
-      success: false,
-      message: "Unable to fill listed companies: " + e.message,
-    });
-  }
-});
-
-app.get("/get_stock_security_id/:symbol", async (req: Request, res: Response) => {
-  try {
-    const { symbol } = req.params;
-    const securityId = await getSecurityId(symbol);
-
-    res.json({
-      success: true,
-      message: `Successfully fetch security id: ${securityId}`,
-    });
-  } catch (e) {
-    log.error(e.message);
-    res.status(400).json({
-      success: false,
-      message: "Unable to archive data: " + e.message,
-    });
-  }
-});
-
-app.post("/archive_last_trading_stock_data", async (req: Request, res: Response) => {
-  try {
-    const db = req.app.get("dao") as knex;
-    const symbols = await db
-      .from(STOCK_SYMBOLS_TABLE)
-      .select("symbol", "company_id", "security_symbol_id");
-
-    var comprehensiveStockData: any[] = [];
-    for (var i = 0; i < symbols.length; i++) {
-      var { symbol, security_symbol_id } = symbols[i];
-      const data = await getEodData(security_symbol_id);
-      log.trace(symbol, security_symbol_id);
-
-      if (data === null) {
-        continue;
-      }
-
-      comprehensiveStockData.push({
-        "date": moment(data.tradingDate).toDate(),
-        "open": data.sqOpen,
-        "high": data.sqHigh,
-        "low": data.sqLow,
-        "close": data.sqClose,
-        "volume": data.totalVolume,
-        "symbol": symbol,
-      });
-    }
-
-    if (comprehensiveStockData.length > 0) {
-      await db.batchInsert(STOCK_DATA_TABLE, comprehensiveStockData, 30);  
-    }
-
-    res.json({
-      success: true,
-      message: "Successfully stored daily data to database.",
-    });
-  } catch (e) {
-    log.error(e.message);
-    res.status(400).json({
-      success: false,
-      message: "Unable to archive data: " + e.message,
-    });
-  }
-});
-
-app.post("/archive_trading_stock_data/:slicesRaw", async (req: Request, res: Response) => {
-  try {
-    const { slicesRaw } = req.params;
-    const slices = parseInt(slicesRaw);
-
-    if (slices <= 0) {
-      throw "slice number not enought";
-    }
-
-    const db = req.app.get("dao") as knex;
-    const symbols = await db
-      .from(STOCK_SYMBOLS_TABLE)
-      .select("symbol", "company_id", "security_symbol_id");
-
-    var comprehensiveStockData: any[] = [];
-    for (var i = 0; i < symbols.length; i++) {
-      var { symbol, security_symbol_id } = symbols[i];
-      const dataRaw = await getEodDataSlice(security_symbol_id, slices);
-      log.trace(symbol, security_symbol_id);
-
-      if (dataRaw === null) {
-        continue;
-      }
-
-      const stockData = dataRaw.map((data: any) => ({
-        "date": moment(data.tradingDate).toDate(),
-        "open": data.sqOpen,
-        "high": data.sqHigh,
-        "low": data.sqLow,
-        "close": data.sqClose,
-        "volume": data.totalVolume,
-        "symbol": symbol,
+app.post(
+  "/management/fill_listed_companies",
+  async (req: Request, res: Response) => {
+    try {
+      const db = req.app.get("dao") as knex;
+      const listedCompaniesRaw = await getListedCompanies();
+      const listedCompanies = listedCompaniesRaw.map((company: any) => ({
+        symbol: company.securitySymbol,
+        name: company.securityName,
+        status: 1,
+        listed_date: moment(company.listingDate).toDate(),
+        security_status: company.securityStatus,
+        security_type: company.securityType,
+        subsector_id: company.subsectorName,
+        sector_id: company.indexName,
+        company_id: company.companyId,
+        security_symbol_id: company.securitySymbolId,
       }));
 
-      comprehensiveStockData.push(stockData);
-    }
+      await db.batchInsert(
+        STOCK_SYMBOLS_TABLE,
+        listedCompanies,
+        BATCH_INSERT_CHUNK_SIZE
+      );
 
-    const flatStockData = comprehensiveStockData.flat();
-    if (flatStockData.length > 0) {
-      await db.batchInsert(STOCK_DATA_TABLE, flatStockData, 30);  
+      res.json({
+        success: true,
+        message: "Successfully filled listed companies to database.",
+      });
+    } catch (e) {
+      log.error(e.message);
+      res.status(400).json({
+        success: false,
+        message: "Unable to fill listed companies: " + e.message,
+      });
     }
-
-    res.json({
-      success: true,
-      message: "Successfully stored daily data to database.",
-    });
-  } catch (e) {
-    log.error(e.message);
-    res.status(400).json({
-      success: false,
-      message: "Unable to archive data: " + e.message,
-    });
   }
-});
+);
+
+app.get(
+  "/management/get_stock_security_id/:symbol",
+  async (req: Request, res: Response) => {
+    try {
+      const { symbol } = req.params;
+      const securityId = await getSecurityId(symbol);
+
+      res.json({
+        success: true,
+        message: `Successfully fetch security id: ${securityId}`,
+      });
+    } catch (e) {
+      log.error(e.message);
+      res.status(400).json({
+        success: false,
+        message: "Unable to archive data: " + e.message,
+      });
+    }
+  }
+);
+
+app.post(
+  "/management/archive_last_trading_stock_data",
+  async (req: Request, res: Response) => {
+    try {
+      const db = req.app.get("dao") as knex;
+      const symbols = await db
+        .from(STOCK_SYMBOLS_TABLE)
+        .select("symbol", "company_id", "security_symbol_id");
+
+      var comprehensiveStockData: any[] = [];
+      for (var i = 0; i < symbols.length; i++) {
+        var { symbol, security_symbol_id } = symbols[i];
+        const data = await getEodData(security_symbol_id);
+        log.trace(symbol, security_symbol_id);
+
+        if (data === null) {
+          continue;
+        }
+
+        comprehensiveStockData.push({
+          date: moment(data.tradingDate).toDate(),
+          open: data.sqOpen,
+          high: data.sqHigh,
+          low: data.sqLow,
+          close: data.sqClose,
+          volume: data.totalVolume,
+          symbol: symbol,
+        });
+      }
+
+      if (comprehensiveStockData.length > 0) {
+        await db.batchInsert(STOCK_DATA_TABLE, comprehensiveStockData, 30);
+      }
+
+      res.json({
+        success: true,
+        message: "Successfully stored daily data to database.",
+      });
+    } catch (e) {
+      log.error(e.message);
+      res.status(400).json({
+        success: false,
+        message: "Unable to archive data: " + e.message,
+      });
+    }
+  }
+);
+
+app.post(
+  "/management/archive_trading_stock_data/:slicesRaw",
+  async (req: Request, res: Response) => {
+    try {
+      const { slicesRaw } = req.params;
+      const slices = parseInt(slicesRaw);
+
+      if (slices <= 0) {
+        throw "slice number not enought";
+      }
+
+      const db = req.app.get("dao") as knex;
+      const symbols = await db
+        .from(STOCK_SYMBOLS_TABLE)
+        .select("symbol", "company_id", "security_symbol_id");
+
+      var comprehensiveStockData: any[] = [];
+      for (var i = 0; i < symbols.length; i++) {
+        var { symbol, security_symbol_id } = symbols[i];
+        const dataRaw = await getEodDataSlice(security_symbol_id, slices);
+        log.trace(symbol, security_symbol_id);
+
+        if (dataRaw === null) {
+          continue;
+        }
+
+        const stockData = dataRaw.map((data: any) => ({
+          date: moment(data.tradingDate).toDate(),
+          open: data.sqOpen,
+          high: data.sqHigh,
+          low: data.sqLow,
+          close: data.sqClose,
+          volume: data.totalVolume,
+          symbol: symbol,
+        }));
+
+        comprehensiveStockData.push(stockData);
+      }
+
+      const flatStockData = comprehensiveStockData.flat();
+      if (flatStockData.length > 0) {
+        await db.batchInsert(STOCK_DATA_TABLE, flatStockData, 30);
+      }
+
+      res.json({
+        success: true,
+        message: "Successfully stored daily data to database.",
+      });
+    } catch (e) {
+      log.error(e.message);
+      res.status(400).json({
+        success: false,
+        message: "Unable to archive data: " + e.message,
+      });
+    }
+  }
+);
 
 app.listen({ port: PORT }, function () {
   log.info(`Server now listening in port ${PORT}`);
 });
 
 async function getListedCompanies(): Promise<any> {
-  const response = await axios.get("companyInfoSecurityProfile.html?method=getListedRecords&common=yes&ajax=true", {
-    baseURL: "https://www.pse.com.ph/stockMarket/",
-    headers: {
-      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:83.0) Gecko/20100101 Firefox/83.0",
-      "Accept": "*/*",
-      "Accept-Language": "en-US,en;q=0.5",
-      "X-Requested-With": "XMLHttpRequest",
-      "Pragma": "no-cache",
-      "Cache-Control": "no-cache",
-      "Referer": "https://www.pse.com.ph/stockMarket/home.html",
-    },
-  });
+  const response = await axios.get(
+    "companyInfoSecurityProfile.html?method=getListedRecords&common=yes&ajax=true",
+    {
+      baseURL: "https://www.pse.com.ph/stockMarket/",
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:83.0) Gecko/20100101 Firefox/83.0",
+        Accept: "*/*",
+        "Accept-Language": "en-US,en;q=0.5",
+        "X-Requested-With": "XMLHttpRequest",
+        Pragma: "no-cache",
+        "Cache-Control": "no-cache",
+        Referer: "https://www.pse.com.ph/stockMarket/home.html",
+      },
+    }
+  );
 
   const { data } = response;
   if (data.records.length === 0 || data.records === null) {
@@ -356,18 +431,22 @@ async function getListedCompanies(): Promise<any> {
 }
 
 async function getSecurityTypes(): Promise<any> {
-  const response = await axios.get("companyInfoSecurityProfile.html?method=getSecurityTypes&ajax=true", {
-    baseURL: "https://www.pse.com.ph/stockMarket/",
-    headers: {
-      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:83.0) Gecko/20100101 Firefox/83.0",
-      "Accept": "*/*",
-      "Accept-Language": "en-US,en;q=0.5",
-      "X-Requested-With": "XMLHttpRequest",
-      "Pragma": "no-cache",
-      "Cache-Control": "no-cache",
-      "Referer": "https://www.pse.com.ph/stockMarket/home.html",
-    },
-  });
+  const response = await axios.get(
+    "companyInfoSecurityProfile.html?method=getSecurityTypes&ajax=true",
+    {
+      baseURL: "https://www.pse.com.ph/stockMarket/",
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:83.0) Gecko/20100101 Firefox/83.0",
+        Accept: "*/*",
+        "Accept-Language": "en-US,en;q=0.5",
+        "X-Requested-With": "XMLHttpRequest",
+        Pragma: "no-cache",
+        "Cache-Control": "no-cache",
+        Referer: "https://www.pse.com.ph/stockMarket/home.html",
+      },
+    }
+  );
 
   const { data } = response;
   if (data.records.length === 0 || data.records === null) {
@@ -378,18 +457,22 @@ async function getSecurityTypes(): Promise<any> {
 }
 
 async function getSectors(): Promise<any> {
-  const response = await axios.get("companyInfoSecurityProfile.html?method=getSectors&ajax=true", {
-    baseURL: "https://www.pse.com.ph/stockMarket/",
-    headers: {
-      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:83.0) Gecko/20100101 Firefox/83.0",
-      "Accept": "*/*",
-      "Accept-Language": "en-US,en;q=0.5",
-      "X-Requested-With": "XMLHttpRequest",
-      "Pragma": "no-cache",
-      "Cache-Control": "no-cache",
-      "Referer": "https://www.pse.com.ph/stockMarket/home.html",
-    },
-  });
+  const response = await axios.get(
+    "companyInfoSecurityProfile.html?method=getSectors&ajax=true",
+    {
+      baseURL: "https://www.pse.com.ph/stockMarket/",
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:83.0) Gecko/20100101 Firefox/83.0",
+        Accept: "*/*",
+        "Accept-Language": "en-US,en;q=0.5",
+        "X-Requested-With": "XMLHttpRequest",
+        Pragma: "no-cache",
+        "Cache-Control": "no-cache",
+        Referer: "https://www.pse.com.ph/stockMarket/home.html",
+      },
+    }
+  );
 
   const { data } = response;
   if (data.records.length === 0 || data.records === null) {
@@ -400,18 +483,22 @@ async function getSectors(): Promise<any> {
 }
 
 async function getSubsectors(): Promise<any> {
-  const response = await axios.get("companyInfoSecurityProfile.html?method=getSubsectors&ajax=true", {
-    baseURL: "https://www.pse.com.ph/stockMarket/",
-    headers: {
-      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:83.0) Gecko/20100101 Firefox/83.0",
-      "Accept": "*/*",
-      "Accept-Language": "en-US,en;q=0.5",
-      "X-Requested-With": "XMLHttpRequest",
-      "Pragma": "no-cache",
-      "Cache-Control": "no-cache",
-      "Referer": "https://www.pse.com.ph/stockMarket/home.html",
-    },
-  });
+  const response = await axios.get(
+    "companyInfoSecurityProfile.html?method=getSubsectors&ajax=true",
+    {
+      baseURL: "https://www.pse.com.ph/stockMarket/",
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:83.0) Gecko/20100101 Firefox/83.0",
+        Accept: "*/*",
+        "Accept-Language": "en-US,en;q=0.5",
+        "X-Requested-With": "XMLHttpRequest",
+        Pragma: "no-cache",
+        "Cache-Control": "no-cache",
+        Referer: "https://www.pse.com.ph/stockMarket/home.html",
+      },
+    }
+  );
 
   const { data } = response;
   if (data.records.length === 0 || data.records === null) {
@@ -422,18 +509,22 @@ async function getSubsectors(): Promise<any> {
 }
 
 async function getSecurityId(symbol: string): Promise<number> {
-  const response = await axios.get(`home.html?method=findSecurityOrCompany&ajax=true&start=0&limit=1&query=${symbol}`, {
-    baseURL: "https://www.pse.com.ph/stockMarket/",
-    headers: {
-      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:83.0) Gecko/20100101 Firefox/83.0",
-      "Accept": "*/*",
-      "Accept-Language": "en-US,en;q=0.5",
-      "X-Requested-With": "XMLHttpRequest",
-      "Pragma": "no-cache",
-      "Cache-Control": "no-cache",
-      "Referer": "https://www.pse.com.ph/stockMarket/home.html",
-    },
-  });
+  const response = await axios.get(
+    `home.html?method=findSecurityOrCompany&ajax=true&start=0&limit=1&query=${symbol}`,
+    {
+      baseURL: "https://www.pse.com.ph/stockMarket/",
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:83.0) Gecko/20100101 Firefox/83.0",
+        Accept: "*/*",
+        "Accept-Language": "en-US,en;q=0.5",
+        "X-Requested-With": "XMLHttpRequest",
+        Pragma: "no-cache",
+        "Cache-Control": "no-cache",
+        Referer: "https://www.pse.com.ph/stockMarket/home.html",
+      },
+    }
+  );
 
   const { data } = response;
   if (data.records.length === 0 || data.records === null) {
@@ -444,18 +535,22 @@ async function getSecurityId(symbol: string): Promise<number> {
 }
 
 async function getEodData(securityId: number): Promise<any> {
-  const response = await axios.get(`companyInfoHistoricalData.html?method=getRecentSecurityQuoteData&ajax=true&start=0&limit=1&security=${securityId}`, {
-    baseURL: "https://www.pse.com.ph/stockMarket/",
-    headers: {
-      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:83.0) Gecko/20100101 Firefox/83.0",
-      "Accept": "*/*",
-      "Accept-Language": "en-US,en;q=0.5",
-      "X-Requested-With": "XMLHttpRequest",
-      "Pragma": "no-cache",
-      "Cache-Control": "no-cache",
-      "Referer": "https://www.pse.com.ph/stockMarket/home.html",
-    },
-  });
+  const response = await axios.get(
+    `companyInfoHistoricalData.html?method=getRecentSecurityQuoteData&ajax=true&start=0&limit=1&security=${securityId}`,
+    {
+      baseURL: "https://www.pse.com.ph/stockMarket/",
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:83.0) Gecko/20100101 Firefox/83.0",
+        Accept: "*/*",
+        "Accept-Language": "en-US,en;q=0.5",
+        "X-Requested-With": "XMLHttpRequest",
+        Pragma: "no-cache",
+        "Cache-Control": "no-cache",
+        Referer: "https://www.pse.com.ph/stockMarket/home.html",
+      },
+    }
+  );
 
   const { data } = response;
   if (data.records.length === 0 || data.records === null) {
@@ -478,19 +573,26 @@ async function getEodData(securityId: number): Promise<any> {
   return lastTradingData as any;
 }
 
-async function getEodDataSlice(securityId: number, slices: number): Promise<any> {
-  const response = await axios.get(`companyInfoHistoricalData.html?method=getRecentSecurityQuoteData&ajax=true&start=0&limit=1&security=${securityId}`, {
-    baseURL: "https://www.pse.com.ph/stockMarket/",
-    headers: {
-      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:83.0) Gecko/20100101 Firefox/83.0",
-      "Accept": "*/*",
-      "Accept-Language": "en-US,en;q=0.5",
-      "X-Requested-With": "XMLHttpRequest",
-      "Pragma": "no-cache",
-      "Cache-Control": "no-cache",
-      "Referer": "https://www.pse.com.ph/stockMarket/home.html",
-    },
-  });
+async function getEodDataSlice(
+  securityId: number,
+  slices: number
+): Promise<any> {
+  const response = await axios.get(
+    `companyInfoHistoricalData.html?method=getRecentSecurityQuoteData&ajax=true&start=0&limit=1&security=${securityId}`,
+    {
+      baseURL: "https://www.pse.com.ph/stockMarket/",
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:83.0) Gecko/20100101 Firefox/83.0",
+        Accept: "*/*",
+        "Accept-Language": "en-US,en;q=0.5",
+        "X-Requested-With": "XMLHttpRequest",
+        Pragma: "no-cache",
+        "Cache-Control": "no-cache",
+        Referer: "https://www.pse.com.ph/stockMarket/home.html",
+      },
+    }
+  );
 
   const { data } = response;
   if (data.records.length === 0 || data.records === null) {

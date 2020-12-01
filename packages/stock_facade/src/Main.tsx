@@ -1,9 +1,16 @@
-import * as React from "react";
+import React from "react";
 import { render as Render } from "react-dom";
+import log from "loglevel";
+import _ from "lodash";
+import { App } from "./App";
 
-import { Hello } from "./App";
+const WHITELIST_DOMAINS = ["localhost", "trade.foureveryoung.online"];
 
-Render(
-  <Hello />,
-  document.getElementById("app")
-);
+function render(): void {
+  Render(<App />, document.getElementById("app"));
+}
+
+if (_.includes(WHITELIST_DOMAINS, window.location.hostname)) {
+  log.info("Oracle starting up.");
+  render();
+}
