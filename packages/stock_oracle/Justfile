@@ -1,0 +1,7 @@
+set shell := ["powershell.exe", "-ExecutionPolicy", "Bypass", "-c"]
+
+tarball:
+    tar -czf oracle.tar.gz src package.json tsconfig.json
+
+transfer:
+    scp oracle.tar.gz server202:~/webapps

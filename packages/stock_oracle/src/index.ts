@@ -18,13 +18,15 @@ const ENVIRONMENT = process.env.NODE_ENV || "production";
 const PORT = process.env.PORT || 80;
 
 const BATCH_INSERT_CHUNK_SIZE = 30;
-const STOCK_DATA_TABLE = "eod_stock_data_test";
+const STOCK_DATA_TABLE = ENVIRONMENT === "production" ? "eod_stock_data" : "eod_stock_data_test";
 const STOCK_SYMBOLS_TABLE = "stock_symbols";
 const STOCK_SECURITY_TYPES_TABLE = "security_types";
 const STOCK_SECTORS_TABLE = "sectors";
 const STOCK_SUBSECTORS_TABLE = "subsectors";
 
 log.setLevel(ENVIRONMENT === "production" ? log.levels.INFO : log.levels.DEBUG);
+log.info("Current environment:", ENVIRONMENT);
+log.info("Current stock data table:", STOCK_DATA_TABLE);
 
 const client = knex({
   client: "mysql",
@@ -86,7 +88,7 @@ app.use(
   basicAuth({
     users: { oracle_admin: "oracle_pass" },
     challenge: true,
-    realm: "The Oracle",
+    realm: "The Stock Oracle",
   })
 );
 app.use(bodyParser.urlencoded({ extended: true }));
