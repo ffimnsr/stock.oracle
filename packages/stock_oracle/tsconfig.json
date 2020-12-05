@@ -1,27 +1,27 @@
 {
-    "compilerOptions": {
-        // "lib": ["es5", "es6"],
-        "target": "es2020",
-        "module": "commonjs",
-        "moduleResolution": "node",
-        "emitDecoratorMetadata": true,
-        "experimentalDecorators": true,
-        "esModuleInterop": true,
-        "removeComments": true,
-        "noImplicitReturns": true,
-        "noUnusedLocals": true,
-        "noUnusedParameters": true,
-        "importHelpers": true,
-        "sourceMap": false,
-        "strict": true,
-        "outDir": "dist",
-        "skipLibCheck": true,
-        "incremental": false
+  "compilerOptions": {
+    "target": "es2020",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "esModuleInterop": true,
+    "removeComments": true,
+    "noImplicitReturns": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "importHelpers": true,
+    "sourceMap": false,
+    "strict": true,
+    "skipLibCheck": true,
+    "incremental": false,
+    "outDir": "dist",
+    "baseUrl": ".",
+    "paths": {
+      "@root/*": ["src/*"]
     },
-    "include": [
-        "src"
-    ],
-    "exclude": [
-        "node_modules"
-    ]
+    "lib": ["es2020"]
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx"],
+  "exclude": ["dist", "node_modules"]
 }

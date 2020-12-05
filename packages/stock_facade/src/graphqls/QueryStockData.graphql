@@ -1,0 +1,10 @@
+query QueryStockData($symbol: String!) {
+  stockData(symbol: $symbol) {
+    date
+    open
+    high
+    low
+    close
+    volume
+  }
+}

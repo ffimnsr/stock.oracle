@@ -6,26 +6,26 @@ import compression from "compression";
 import responseTime from "response-time";
 import basicAuth from "express-basic-auth";
 import log from "loglevel";
-import dotenv from "dotenv";
-import { ApolloServer, gql } from "apollo-server-express";
+import { ApolloServer } from "apollo-server-express";
 import knex from "knex";
-import axios from "axios";
 import moment from "moment";
+import _ from "lodash";
+import {
+  isProduction,
+  ENVIRONMENT,
+  PORT,
+  BATCH_INSERT_CHUNK_SIZE,
+  STOCK_DATA_TABLE,
+  STOCK_SECURITY_TYPES_TABLE,
+  STOCK_SECTORS_TABLE,
+  STOCK_SUBSECTORS_TABLE,
+  STOCK_SYMBOLS_TABLE,
+} from "./globals";
+import * as ferry from "./ferry";
+import typeDefs from "./typedefs";
+import resolvers from "./resolvers";
 
-dotenv.config();
-
-const ENVIRONMENT = process.env.NODE_ENV || "production";
-const PORT = process.env.PORT || 80;
-
-const BATCH_INSERT_CHUNK_SIZE = 30;
-const STOCK_DATA_TABLE =
-  ENVIRONMENT === "production" ? "eod_stock_data" : "eod_stock_data_test";
-const STOCK_SYMBOLS_TABLE = "stock_symbols";
-const STOCK_SECURITY_TYPES_TABLE = "security_types";
-const STOCK_SECTORS_TABLE = "sectors";
-const STOCK_SUBSECTORS_TABLE = "subsectors";
-
-log.setLevel(ENVIRONMENT === "production" ? log.levels.INFO : log.levels.DEBUG);
+log.setLevel(isProduction() ? log.levels.INFO : log.levels.DEBUG);
 log.info("Current environment:", ENVIRONMENT);
 log.info("Current stock data table:", STOCK_DATA_TABLE);
 
@@ -36,89 +36,28 @@ const client = knex({
     host: process.env.DB_HOST,
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
+    timezone: "UTC",
+    typeCast: (field: any, next: any) => {
+      if (field.type === "DATE") {
+        return moment(field.string()).toDate();
+      }
+      return next();
+    },
   },
   pool: { min: 0, max: 9 },
 });
 
-const typeDefs = gql`
-  type StockSymbol {
-    id: ID
-    symbol: String
-    companyId: Int
-    securitySymbolId: Int
-  }
-
-  type StockDataItem {
-    date: String
-    open: Float
-    high: Float
-    low: Float
-    close: Float
-    volume: Float
-  }
-
-  type Query {
-    ehlo: String
-    symbols: [StockSymbol]
-    stockData(symbol: String!): [StockDataItem]
-  }
-`;
-
-type Context = {
-  db: knex;
-};
-
-const resolvers = {
-  Query: {
-    ehlo: () => "Hello, World!",
-    sectors: async (_parent: any, _args: any, context: Context, _info: any) => {
-      const { db } = context;
-      const result = await db
-        .from(STOCK_SYMBOLS_TABLE)
-        .select("id", "symbol", "company_id", "security_symbol_id");
-
-      return result;
-    },
-    subsectors: async (
-      _parent: any,
-      _args: any,
-      context: Context,
-      _info: any
-    ) => {
-      const { db } = context;
-      const result = await db
-        .from(STOCK_SYMBOLS_TABLE)
-        .select("id", "symbol", "company_id", "security_symbol_id");
-
-      return result;
-    },
-    symbols: async (_parent: any, _args: any, context: Context, _info: any) => {
-      const { db } = context;
-      const result = await db
-        .from(STOCK_SYMBOLS_TABLE)
-        .select("id", "symbol", "company_id", "security_symbol_id");
-
-      return result;
-    },
-    stockData: async (
-      _parent: any,
-      args: any,
-      context: Context,
-      _info: any
-    ) => {
-      const { db } = context;
-      const result = await db
-        .from(STOCK_DATA_TABLE)
-        .where({ symbol: args.symbol })
-        .orderBy("date", "desc")
-        .select("date", "open", "high", "low", "close", "volume");
-
-      return result;
-    },
-  },
+const snakeCaseFieldResolver = (
+  source: any,
+  _args: any,
+  _context: any,
+  info: any
+) => {
+  return source[_.snakeCase(info.fieldName)];
 };
 
 const server = new ApolloServer({
+  fieldResolver: snakeCaseFieldResolver,
   typeDefs,
   resolvers,
   context: ({ req }) => ({
@@ -129,15 +68,27 @@ const app = express();
 
 app.set("dao", client);
 app.use(
-  basicAuth({
-    users: { oracle_admin: "oracle_pass" },
-    challenge: true,
-    realm: "The Stock Oracle",
+  cors({
+    credentials: true,
+    origin: true,
+    methods: ["GET", "POST"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    maxAge: 600,
   })
 );
+
+if (isProduction()) {
+  app.use(
+    basicAuth({
+      users: { oracle_admin: "oracle_pass" },
+      challenge: true,
+      realm: "The Stock Oracle",
+    })
+  );
+}
+
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
-app.use(cors());
 app.use(morgan("dev"));
 app.use(compression());
 app.use(responseTime());
@@ -153,7 +104,7 @@ app.post(
   async (req: Request, res: Response) => {
     try {
       const db = req.app.get("dao") as knex;
-      const securityTypesRaw = await getSecurityTypes();
+      const securityTypesRaw = await ferry.getSecurityTypes();
       const securityTypes = securityTypesRaw.map((securityType: any) => ({
         code: securityType.code,
         name: securityType.name,
@@ -182,7 +133,7 @@ app.post(
 app.post("/management/fill_sectors", async (req: Request, res: Response) => {
   try {
     const db = req.app.get("dao") as knex;
-    const sectorsRaw = await getSectors();
+    const sectorsRaw = await ferry.getSectors();
     const sectors = sectorsRaw.map((sector: any) => ({
       index_id: sector.indexId,
       code: sector.indexAbb,
@@ -208,7 +159,7 @@ app.post("/management/fill_sectors", async (req: Request, res: Response) => {
 app.post("/management/fill_subsectors", async (req: Request, res: Response) => {
   try {
     const db = req.app.get("dao") as knex;
-    const sectorsRaw = await getSubsectors();
+    const sectorsRaw = await ferry.getSubsectors();
     const sectors = sectorsRaw.map((sector: any) => ({
       index_id: sector.indexId,
       name: sector.subsectorName,
@@ -239,7 +190,7 @@ app.post(
   async (req: Request, res: Response) => {
     try {
       const db = req.app.get("dao") as knex;
-      const listedCompaniesRaw = await getListedCompanies();
+      const listedCompaniesRaw = await ferry.getListedCompanies();
       const listedCompanies = listedCompaniesRaw.map((company: any) => ({
         symbol: company.securitySymbol,
         name: company.securityName,
@@ -278,7 +229,7 @@ app.get(
   async (req: Request, res: Response) => {
     try {
       const { symbol } = req.params;
-      const securityId = await getSecurityId(symbol);
+      const securityId = await ferry.getSecurityId(symbol);
 
       res.json({
         success: true,
@@ -306,7 +257,7 @@ app.post(
       var comprehensiveStockData: any[] = [];
       for (var i = 0; i < symbols.length; i++) {
         var { symbol, security_symbol_id } = symbols[i];
-        const data = await getEodData(security_symbol_id);
+        const data = await ferry.getEodData(security_symbol_id);
         log.trace(symbol, security_symbol_id);
 
         if (data === null) {
@@ -361,7 +312,7 @@ app.post(
       var comprehensiveStockData: any[] = [];
       for (var i = 0; i < symbols.length; i++) {
         var { symbol, security_symbol_id } = symbols[i];
-        const dataRaw = await getEodDataSlice(security_symbol_id, slices);
+        const dataRaw = await ferry.getEodDataSlice(security_symbol_id, slices);
         log.trace(symbol, security_symbol_id);
 
         if (dataRaw === null) {
@@ -403,202 +354,3 @@ app.post(
 app.listen({ port: PORT }, function () {
   log.info(`Server now listening in port ${PORT}`);
 });
-
-async function getListedCompanies(): Promise<any> {
-  const response = await axios.get(
-    "companyInfoSecurityProfile.html?method=getListedRecords&common=yes&ajax=true",
-    {
-      baseURL: "https://www.pse.com.ph/stockMarket/",
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:83.0) Gecko/20100101 Firefox/83.0",
-        Accept: "*/*",
-        "Accept-Language": "en-US,en;q=0.5",
-        "X-Requested-With": "XMLHttpRequest",
-        Pragma: "no-cache",
-        "Cache-Control": "no-cache",
-        Referer: "https://www.pse.com.ph/stockMarket/home.html",
-      },
-    }
-  );
-
-  const { data } = response;
-  if (data.records.length === 0 || data.records === null) {
-    return null;
-  }
-
-  return data.records as any;
-}
-
-async function getSecurityTypes(): Promise<any> {
-  const response = await axios.get(
-    "companyInfoSecurityProfile.html?method=getSecurityTypes&ajax=true",
-    {
-      baseURL: "https://www.pse.com.ph/stockMarket/",
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:83.0) Gecko/20100101 Firefox/83.0",
-        Accept: "*/*",
-        "Accept-Language": "en-US,en;q=0.5",
-        "X-Requested-With": "XMLHttpRequest",
-        Pragma: "no-cache",
-        "Cache-Control": "no-cache",
-        Referer: "https://www.pse.com.ph/stockMarket/home.html",
-      },
-    }
-  );
-
-  const { data } = response;
-  if (data.records.length === 0 || data.records === null) {
-    return null;
-  }
-
-  return data.records as any;
-}
-
-async function getSectors(): Promise<any> {
-  const response = await axios.get(
-    "companyInfoSecurityProfile.html?method=getSectors&ajax=true",
-    {
-      baseURL: "https://www.pse.com.ph/stockMarket/",
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:83.0) Gecko/20100101 Firefox/83.0",
-        Accept: "*/*",
-        "Accept-Language": "en-US,en;q=0.5",
-        "X-Requested-With": "XMLHttpRequest",
-        Pragma: "no-cache",
-        "Cache-Control": "no-cache",
-        Referer: "https://www.pse.com.ph/stockMarket/home.html",
-      },
-    }
-  );
-
-  const { data } = response;
-  if (data.records.length === 0 || data.records === null) {
-    return null;
-  }
-
-  return data.records as any;
-}
-
-async function getSubsectors(): Promise<any> {
-  const response = await axios.get(
-    "companyInfoSecurityProfile.html?method=getSubsectors&ajax=true",
-    {
-      baseURL: "https://www.pse.com.ph/stockMarket/",
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:83.0) Gecko/20100101 Firefox/83.0",
-        Accept: "*/*",
-        "Accept-Language": "en-US,en;q=0.5",
-        "X-Requested-With": "XMLHttpRequest",
-        Pragma: "no-cache",
-        "Cache-Control": "no-cache",
-        Referer: "https://www.pse.com.ph/stockMarket/home.html",
-      },
-    }
-  );
-
-  const { data } = response;
-  if (data.records.length === 0 || data.records === null) {
-    return null;
-  }
-
-  return data.records as any;
-}
-
-async function getSecurityId(symbol: string): Promise<number> {
-  const response = await axios.get(
-    `home.html?method=findSecurityOrCompany&ajax=true&start=0&limit=1&query=${symbol}`,
-    {
-      baseURL: "https://www.pse.com.ph/stockMarket/",
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:83.0) Gecko/20100101 Firefox/83.0",
-        Accept: "*/*",
-        "Accept-Language": "en-US,en;q=0.5",
-        "X-Requested-With": "XMLHttpRequest",
-        Pragma: "no-cache",
-        "Cache-Control": "no-cache",
-        Referer: "https://www.pse.com.ph/stockMarket/home.html",
-      },
-    }
-  );
-
-  const { data } = response;
-  if (data.records.length === 0 || data.records === null) {
-    return 0;
-  }
-
-  return data.records[0].securityId as number;
-}
-
-async function getEodData(securityId: number): Promise<any> {
-  const response = await axios.get(
-    `companyInfoHistoricalData.html?method=getRecentSecurityQuoteData&ajax=true&start=0&limit=1&security=${securityId}`,
-    {
-      baseURL: "https://www.pse.com.ph/stockMarket/",
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:83.0) Gecko/20100101 Firefox/83.0",
-        Accept: "*/*",
-        "Accept-Language": "en-US,en;q=0.5",
-        "X-Requested-With": "XMLHttpRequest",
-        Pragma: "no-cache",
-        "Cache-Control": "no-cache",
-        Referer: "https://www.pse.com.ph/stockMarket/home.html",
-      },
-    }
-  );
-
-  const { data } = response;
-  if (data.records.length === 0 || data.records === null) {
-    return null;
-  }
-
-  const lastTradingData = data.records[0];
-
-  if (ENVIRONMENT === "development") {
-    return lastTradingData as any;
-  }
-
-  const lastTradingDate = moment(lastTradingData.tradingDate);
-  const currentDate = moment();
-
-  if (!currentDate.isSame(lastTradingDate, "day")) {
-    return null;
-  }
-
-  return lastTradingData as any;
-}
-
-async function getEodDataSlice(
-  securityId: number,
-  slices: number
-): Promise<any> {
-  const response = await axios.get(
-    `companyInfoHistoricalData.html?method=getRecentSecurityQuoteData&ajax=true&start=0&limit=1&security=${securityId}`,
-    {
-      baseURL: "https://www.pse.com.ph/stockMarket/",
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:83.0) Gecko/20100101 Firefox/83.0",
-        Accept: "*/*",
-        "Accept-Language": "en-US,en;q=0.5",
-        "X-Requested-With": "XMLHttpRequest",
-        Pragma: "no-cache",
-        "Cache-Control": "no-cache",
-        Referer: "https://www.pse.com.ph/stockMarket/home.html",
-      },
-    }
-  );
-
-  const { data } = response;
-  if (data.records.length === 0 || data.records === null) {
-    return null;
-  }
-
-  const lastTradingData = data.records.slice(0, slices);
-  return lastTradingData as any;
-}

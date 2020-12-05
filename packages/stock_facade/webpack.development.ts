@@ -19,7 +19,7 @@ module.exports = merge(common, {
     noInfo: false,
     hot: true,
     host: "127.0.0.1",
-    port: 4000,
+    port: 8080,
     index: "index.html"
   },
   stats: "normal",

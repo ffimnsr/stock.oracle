@@ -1,0 +1,9 @@
+query QueryStocks {
+  stocks {
+    id
+    name
+    symbol
+    companyId
+    securitySymbolId
+  }
+}

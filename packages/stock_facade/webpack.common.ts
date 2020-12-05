@@ -44,6 +44,13 @@ const config: webpack.Configuration = {
         },
       },
       {
+        test: /\.(graphql|gql)$/,
+        exclude: /node_modules/,
+        use: {
+          loader: "graphql-tag/loader",
+        },
+      },
+      {
         test: /\.s[ac]ss$/,
         use: [MiniCssExtractPlugin.loader, "css-loader", "postcss-loader", "sass-loader"],
       },
