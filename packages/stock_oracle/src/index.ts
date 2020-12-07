@@ -250,7 +250,7 @@ app.post(
   "/management/archive_last_trading_stock_data",
   async (_req: Request, res: Response) => {
     if (isMainThread) {
-      let worker = new Worker(__dirname + "/workers/archive-trading-data.js");
+      let worker = new Worker(__dirname + "/workers/archive_trading_data.js");
       worker.on("message", (data) => {
         log.trace(data);
       });
@@ -280,7 +280,7 @@ app.post(
     const { slicesRaw } = req.params;
     if (isMainThread) {
       let worker = new Worker(
-        __dirname + "/workers/archive-trading-data-with-n.js",
+        __dirname + "/workers/archive_trading_data_with_n.js",
         {
           workerData: {
             slicesRaw,
