@@ -10,6 +10,7 @@ import { ApolloServer } from "apollo-server-express";
 import knex from "knex";
 import moment from "moment";
 import _ from "lodash";
+import { isMainThread, Worker } from "worker_threads";
 import {
   isProduction,
   ENVIRONMENT,
@@ -247,107 +248,65 @@ app.get(
 
 app.post(
   "/management/archive_last_trading_stock_data",
-  async (req: Request, res: Response) => {
-    try {
-      const db = req.app.get("dao") as knex;
-      const symbols = await db
-        .from(STOCK_SYMBOLS_TABLE)
-        .select("symbol", "company_id", "security_symbol_id");
-
-      var comprehensiveStockData: any[] = [];
-      for (var i = 0; i < symbols.length; i++) {
-        var { symbol, security_symbol_id } = symbols[i];
-        const data = await ferry.getEodData(security_symbol_id);
-        log.trace(symbol, security_symbol_id);
-
-        if (data === null) {
-          continue;
+  async (_req: Request, res: Response) => {
+    if (isMainThread) {
+      let worker = new Worker(__dirname + "/workers/archive-trading-data.js");
+      worker.on("message", (data) => {
+        log.trace(data);
+      });
+      worker.on("error", (e) => {
+        log.error("Unable to archive data: " + e.message);
+      });
+      worker.on("exit", (code) => {
+        if (code !== 0) {
+          log.error("Unable to archive data code: ", code);
         }
 
-        comprehensiveStockData.push({
-          date: moment(data.tradingDate).toDate(),
-          open: data.sqOpen,
-          high: data.sqHigh,
-          low: data.sqLow,
-          close: data.sqClose,
-          volume: data.totalVolume,
-          symbol: symbol,
-        });
-      }
-
-      if (comprehensiveStockData.length > 0) {
-        await db.batchInsert(STOCK_DATA_TABLE, comprehensiveStockData, 30);
-      }
-
-      res.json({
-        success: true,
-        message: "Successfully stored daily data to database.",
-      });
-    } catch (e) {
-      log.error(e.message);
-      res.status(400).json({
-        success: false,
-        message: "Unable to archive data: " + e.message,
+        log.info("Successfully archived last trading data to database");
       });
     }
+
+    res.json({
+      success: true,
+      message:
+        "Successfully queued last trading data for processing to database.",
+    });
   }
 );
 
 app.post(
   "/management/archive_trading_stock_data/:slicesRaw",
   async (req: Request, res: Response) => {
-    try {
-      const { slicesRaw } = req.params;
-      const slices = parseInt(slicesRaw);
-
-      if (slices <= 0) {
-        throw "slice number not enought";
-      }
-
-      const db = req.app.get("dao") as knex;
-      const symbols = await db
-        .from(STOCK_SYMBOLS_TABLE)
-        .select("symbol", "company_id", "security_symbol_id");
-
-      var comprehensiveStockData: any[] = [];
-      for (var i = 0; i < symbols.length; i++) {
-        var { symbol, security_symbol_id } = symbols[i];
-        const dataRaw = await ferry.getEodDataSlice(security_symbol_id, slices);
-        log.trace(symbol, security_symbol_id);
-
-        if (dataRaw === null) {
-          continue;
+    const { slicesRaw } = req.params;
+    if (isMainThread) {
+      let worker = new Worker(
+        __dirname + "/workers/archive-trading-data-with-n.js",
+        {
+          workerData: {
+            slicesRaw,
+          },
+        }
+      );
+      worker.on("message", (data) => {
+        log.trace(data);
+      });
+      worker.on("error", (e) => {
+        log.error("Unable to archive data: " + e.message);
+      });
+      worker.on("exit", (code) => {
+        if (code !== 0) {
+          log.error("Unable to archive data code: ", code);
         }
 
-        const stockData = dataRaw.map((data: any) => ({
-          date: moment(data.tradingDate).toDate(),
-          open: data.sqOpen,
-          high: data.sqHigh,
-          low: data.sqLow,
-          close: data.sqClose,
-          volume: data.totalVolume,
-          symbol: symbol,
-        }));
-
-        comprehensiveStockData.push(stockData);
-      }
-
-      const flatStockData = comprehensiveStockData.flat();
-      if (flatStockData.length > 0) {
-        await db.batchInsert(STOCK_DATA_TABLE, flatStockData, 30);
-      }
-
-      res.json({
-        success: true,
-        message: "Successfully stored daily data to database.",
-      });
-    } catch (e) {
-      log.error(e.message);
-      res.status(400).json({
-        success: false,
-        message: "Unable to archive data: " + e.message,
+        log.info("Successfully archived last trading data to database");
       });
     }
+
+    res.json({
+      success: true,
+      message:
+        "Successfully queued last trading data for processing to database.",
+    });
   }
 );
 

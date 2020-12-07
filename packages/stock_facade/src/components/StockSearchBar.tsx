@@ -7,7 +7,7 @@ import { Stock } from "@/models/Stock";
 import { globalStateVar } from "@/Cache";
 import QueryStocks from "@/graphqls/QueryStocks.graphql";
 
-const StockSuggestComponent = Suggest.ofType<Stock>();
+const StockSuggest = Suggest.ofType<Stock>();
 
 const filterStock: ItemPredicate<Stock> = (
   query,
@@ -88,7 +88,7 @@ function highlightText(text: string, query: string) {
   return tokens;
 }
 
-export const StockSuggest = () => {
+export const StockSearchBar = () => {
   const [currentStock, setCurrentStock] = useState<Stock>();
   const { loading, error, data } = useQuery(QueryStocks);
 
@@ -97,7 +97,7 @@ export const StockSuggest = () => {
   const stocks: Stock[] = loading ? [] : data.stocks;
 
   return (
-    <StockSuggestComponent
+    <StockSuggest
       fill={true}
       items={stocks}
       itemPredicate={filterStock}
@@ -122,6 +122,6 @@ export const StockSuggest = () => {
         }
         rightIcon="caret-down"
       />
-    </StockSuggestComponent>
+    </StockSuggest>
   );
 };

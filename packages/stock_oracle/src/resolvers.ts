@@ -74,6 +74,26 @@ const resolvers = {
     WITHDRAWAL: 2,
     CASHDIVS: 3,
   },
+  MutationResponse: {
+    __resolveType(mutationResponse: any, _context: Context, _info: any) {
+      if (mutationResponse.code === "201" && mutationResponse.journal) {
+        return "AddJournalMutationReponse";
+      }
+
+      if (mutationResponse.code === "202" && mutationResponse.journal) {
+        return "RenameJournalMutationResponse";
+      }
+
+      if (mutationResponse.tradeTransaction) {
+        return "AddTradeTransactionMutationResponse";
+      }
+
+      if (mutationResponse.walletTransaction) {
+        return "AddWalletTransactionMutationResponse";
+      }
+      return null;
+    },
+  },
   Query: {
     ehlo: () => "Hello, World!",
     securityTypes: async (
