@@ -21,15 +21,16 @@ export type Trade = {
   transactionDateEnd: number;
   type: TradeType
   shares: number;
+  buyShares: number;
   avgBuyPrice: number;
-  buyAmount: number;
+  sellShares: number;
   avgSellPrice: number;
-  sellAmount: number;
   status: TradeStatus
 };
 
 export type TradeTransaction = {
   stockId: string;
+  tradeId: string;
   action: TradeAction
   grossPrice: number;
   shares: number;

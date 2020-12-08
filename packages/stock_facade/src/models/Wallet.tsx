@@ -9,6 +9,7 @@ export type Wallet = {
 };
 
 export type WalletTransaction = {
+  walletId: string;
   transactionDate: number;
   action: WalletAction;
   grossAmount: number;
