@@ -5,12 +5,9 @@ import Highcharts, { Options as HighchartsOptions } from "highcharts/highstock";
 import HighchartsReact from "highcharts-react-official";
 import { globalStateVar } from "@/Cache";
 import { StockData } from "@/models/StockData";
-import { Stock } from "@/models/Stock";
 import QueryStockData from "@/graphqls/QueryStockData.graphql";
 
-type ChartProps = {};
-
-export const StockChart: React.FC<ChartProps> = () => {
+export const StockChart = () => {
   const globalState = useReactiveVar(globalStateVar);
   const { symbol, name } = globalState.currentStock;
   const { loading, error, data } = useQuery(QueryStockData, {
@@ -45,7 +42,7 @@ export const StockChart: React.FC<ChartProps> = () => {
       }));
 
   const options: HighchartsOptions = {
-    chart: { height: 600 },
+    chart: { height: 900 },
     credits: { enabled: false },
     scrollbar: { enabled: false },
     title: {
@@ -62,14 +59,14 @@ export const StockChart: React.FC<ChartProps> = () => {
         labels: {
           align: "left",
         },
-        height: "80%",
+        height: "70%",
       },
       {
         labels: {
           align: "left",
         },
-        top: "82%",
-        height: "18%",
+        top: "72%",
+        height: "28%",
         offset: 0,
       },
     ],

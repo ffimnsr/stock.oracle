@@ -4,8 +4,10 @@ import axios from "axios";
 import styled from "styled-components";
 import { FixedSizeList } from "react-window";
 import AutoSizer from "react-virtualized-auto-sizer";
-import { Classes, Colors } from "@blueprintjs/core";
+import { Classes, Colors, Button, Divider } from "@blueprintjs/core";
+import { IconNames } from "@blueprintjs/icons";
 import classNames from "classnames";
+import { SpinnerLoad, HeaderSplitContainer, HeaderGroup, CustomH5 } from "@/components/Commons";
 
 const LoadingCell = styled.div`
   margin: auto;
@@ -60,32 +62,15 @@ export async function getTopLosers(): Promise<any> {
   return response;
 }
 
-export const TopLosersSecurityTable = (): JSX.Element => {
-  const [data, setData] = useState({
-    records: [],
-    count: 0,
-    isFetching: false,
-  });
+type Props = {
+  data: {
+    records: never[];
+    count: number;
+    isFetching: boolean;
+  };
+};
 
-  useEffect(() => {
-    const fetchTopLosers = async () => {
-      try {
-        setData({ ...data, isFetching: true });
-        const response = await getTopLosers();
-        setData({
-          records: response.data.records,
-          count: response.data.count,
-          isFetching: false,
-        });
-      } catch (e) {
-        log.error(e);
-        setData({ ...data, isFetching: false });
-      }
-    };
-
-    fetchTopLosers();
-  }, []);
-
+export const TopLosersSecurityTable = React.memo(({ data }: Props): JSX.Element => {
   return (
     <Container>
       <AutoSizer>
@@ -103,5 +88,51 @@ export const TopLosersSecurityTable = (): JSX.Element => {
         )}
       </AutoSizer>
     </Container>
+  );
+});
+
+export const TopLosersSecurityView = () => {
+  const [data, setData] = useState({
+    records: [],
+    count: 0,
+    isFetching: false,
+  });
+
+  const fetchTopLosers = async () => {
+    try {
+      setData({ ...data, isFetching: true });
+      const response = await getTopLosers();
+      setData({
+        records: response.data.records,
+        count: response.data.count,
+        isFetching: false,
+      });
+    } catch (e) {
+      log.error(e);
+      setData({ ...data, isFetching: false });
+    }
+  };
+
+  useEffect(() => {
+    fetchTopLosers();
+  }, []);
+
+  if (data.isFetching) {
+    return <SpinnerLoad />;
+  }
+
+  return (
+    <>
+      <HeaderSplitContainer>
+        <HeaderGroup style={{ display: "flex", alignItems: "center" }}>
+          <CustomH5>Top Losers</CustomH5>
+        </HeaderGroup>
+        <HeaderGroup style={{ textAlign: "right" }}>
+          <Button minimal={true} icon={IconNames.REFRESH} onClick={() => fetchTopLosers()} />
+        </HeaderGroup>
+      </HeaderSplitContainer>
+      <Divider />
+      <TopLosersSecurityTable data={data} />
+    </>
   );
 };

@@ -1,5 +1,7 @@
 import knex from "knex";
+import log from "loglevel";
 import { resolvers as gsResolvers } from "graphql-scalars";
+import moment from "moment";
 import {
   STOCK_DATA_TABLE,
   STOCK_SECURITY_TYPES_TABLE,
@@ -49,30 +51,59 @@ type AddWalletTransaction = {
   netAmount: number;
 };
 
+enum JournalStatus {
+  ACTIVE = 1,
+  DISABLED = 0,
+}
+
+enum TradeType {
+  LONG = 1,
+  SHORT = 0,
+}
+
+enum TradeStatus {
+  ACTIVE = 1,
+  DISABLED = 0,
+}
+
+enum TradeAction {
+  BUY = 1,
+  SELL = 2,
+  STOCKDIVS = 3,
+  IPO = 4,
+}
+
+enum WalletAction {
+  DEPOSIT = 1,
+  WITHDRAWAL = 2,
+  CASHDIVS = 3,
+}
+``;
+
 const resolvers = {
   ...gsResolvers,
   JournalStatus: {
-    ACTIVE: 1,
-    DISABLED: 0,
+    ACTIVE: JournalStatus.ACTIVE,
+    DISABLED: JournalStatus.DISABLED,
   },
   TradeType: {
-    LONG: 1,
-    SHORT: 0,
+    LONG: TradeType.LONG,
+    SHORT: TradeType.SHORT,
   },
   TradeStatus: {
-    ACTIVE: 1,
-    DISABLED: 0,
+    ACTIVE: TradeStatus.ACTIVE,
+    DISABLED: TradeStatus.DISABLED,
   },
   TradeAction: {
-    BUY: 1,
-    SELL: 2,
-    STOCKDIVS: 3,
-    IPO: 4,
+    BUY: TradeAction.BUY,
+    SELL: TradeAction.SELL,
+    STOCKDIVS: TradeAction.STOCKDIVS,
+    IPO: TradeAction.IPO,
   },
   WalletAction: {
-    DEPOSIT: 1,
-    WITHDRAWAL: 2,
-    CASHDIVS: 3,
+    DEPOSIT: WalletAction.DEPOSIT,
+    WITHDRAWAL: WalletAction.WITHDRAWAL,
+    CASHDIVS: WalletAction.CASHDIVS,
   },
   MutationResponse: {
     __resolveType(mutationResponse: any, _context: Context, _info: any) {
@@ -166,10 +197,10 @@ const resolvers = {
           "transaction_date_end",
           "type",
           "shares",
+          "buy_shares",
           "avg_buy_price",
-          "buy_amount",
+          "sell_shares",
           "avg_sell_price",
-          "sell_amount",
           "status"
         );
 
@@ -186,6 +217,7 @@ const resolvers = {
         .where({ journal_id: args.id })
         .select(
           "stock_id",
+          "trade_id",
           "action",
           "gross_price",
           "shares",
@@ -249,9 +281,9 @@ const resolvers = {
         success: true,
         message: "Journal was successfully added",
         journal: {
-          id: id.toString(),
+          id: id[0].toString(),
           name: input.name,
-          exchangeId: input.exchangeId,
+          exchange_id: input.exchangeId,
         },
       };
     },
@@ -284,34 +316,151 @@ const resolvers = {
       { db }: Context,
       _info: any
     ) => {
+      const activeTrades = await db
+        .from(STOCK_TRADES_TABLE)
+        .where({ journal_id: input.journalId })
+        .andWhere({ stock_id: input.stockId })
+        .andWhere({ status: TradeStatus.ACTIVE })
+        .andWhere({ is_deleted: false })
+        .select(
+          "id",
+          "shares",
+          "buy_shares",
+          "avg_buy_price",
+          "sell_shares",
+          "avg_sell_price",
+          "status"
+        );
+
+      // Parse first transaction date.
+      const transactionDateParsed = moment(input.transactionDate).toDate();
+
+      // If there are no match, create one otherwise
+      // use first match as trade id; also update the
+      // trade data if its existing.
+      let tradeId = 0;
+      if (activeTrades.length > 0) {
+        // Only get first trade.
+        const currentTrade = activeTrades[0];
+        tradeId = currentTrade.id;
+
+        log.trace(currentTrade);
+        if (input.action === TradeAction.BUY) {
+          const previousAvgBuyPrice = currentTrade.avg_buy_price;
+          const currentAvgBuyPrice = input.netAmount / input.shares;
+          const totalAvgBuyPrice = previousAvgBuyPrice
+            ? (previousAvgBuyPrice + currentAvgBuyPrice) / 2
+            : currentAvgBuyPrice;
+          const totalBuyShares = currentTrade.buy_shares + input.shares;
+          const totalActiveShares = currentTrade.shares + input.shares;
+
+          log.trace(
+            previousAvgBuyPrice,
+            currentAvgBuyPrice,
+            totalAvgBuyPrice,
+            totalBuyShares,
+            totalActiveShares
+          );
+
+          await db.table(STOCK_TRADES_TABLE).where({ id: tradeId }).update({
+            shares: totalActiveShares,
+            buy_shares: totalBuyShares,
+            avg_buy_price: totalAvgBuyPrice,
+          });
+        } else if (input.action === TradeAction.SELL) {
+          const previousAvgSellPrice = currentTrade.avg_sell_price;
+          const currentAvgSellPrice = input.netAmount / input.shares;
+          const totalAvgSellPrice = previousAvgSellPrice
+            ? (previousAvgSellPrice + currentAvgSellPrice) / 2
+            : currentAvgSellPrice;
+          const totalSellShares = currentTrade.sell_shares + input.shares;
+          const totalActiveShares = currentTrade.shares - input.shares;
+
+          if (totalActiveShares <= 0) {
+            await db.table(STOCK_TRADES_TABLE).where({ id: tradeId }).update({
+              transaction_date_end: moment().toDate(),
+              shares: totalActiveShares,
+              sell_shares: totalSellShares,
+              avg_sell_price: totalAvgSellPrice,
+              status: TradeStatus.DISABLED,
+            });
+          }
+
+          log.trace(
+            previousAvgSellPrice,
+            currentAvgSellPrice,
+            totalAvgSellPrice,
+            totalSellShares,
+            totalActiveShares
+          );
+
+          await db.table(STOCK_TRADES_TABLE).where({ id: tradeId }).update({
+            shares: totalActiveShares,
+            sell_shares: totalSellShares,
+            avg_sell_price: totalAvgSellPrice,
+          });
+        } else {
+          // Redirect to error if unknown trade action.
+          tradeId = 0;
+        }
+      } else {
+        // Only accept if action is `BUY` as if it was negative
+        // it will only cause negative value.
+        if (input.action === TradeAction.BUY) {
+          const initialAvgBuyPrice = input.netAmount / input.shares;
+
+          const temp = await db.into(STOCK_TRADES_TABLE).insert({
+            journal_id: input.journalId,
+            stock_id: input.stockId,
+            transaction_date_start: transactionDateParsed,
+            type: TradeType.LONG,
+            shares: input.shares,
+            buy_shares: input.shares,
+            avg_buy_price: initialAvgBuyPrice,
+            status: TradeStatus.ACTIVE,
+          });
+
+          tradeId = temp[0];
+        }
+      }
+
+      if (tradeId === 0) {
+        return {
+          code: "400",
+          success: false,
+          message: "Unable to create trade transaction as trade is empty",
+        };
+      }
+
       const id = await db.into(STOCK_TRADE_TRANSACTIONS_TABLE).insert({
         journal_id: input.journalId,
         stock_id: input.stockId,
+        trade_id: tradeId,
         action: input.action,
         gross_price: input.grossPrice,
         shares: input.shares,
         gross_amount: input.grossAmount,
         fees: input.fees,
         net_amount: input.netAmount,
-        transaction_date: input.transactionDate,
+        transaction_date: transactionDateParsed,
         remarks: input.remarks,
       });
 
+      log.trace(id);
       return {
         code: "201",
         success: true,
         message: "Trade transaction was successfully added",
-        journal: {
-          id: id.toString(),
-          journalId: input.journalId,
-          stockId: input.stockId,
+        transaction: {
+          stock_id: input.stockId,
+          trade_id: tradeId,
           action: input.action,
-          grossPrice: input.grossPrice,
+          gross_price: input.grossPrice,
           shares: input.shares,
-          grossAmount: input.grossAmount,
+          gross_amount: input.grossAmount,
           fees: input.fees,
-          netAmount: input.netAmount,
-          transactionDate: input.transactionDate,
+          net_amount: input.netAmount,
+          transaction_date: transactionDateParsed,
           remarks: input.remarks,
         },
       };
@@ -322,27 +471,104 @@ const resolvers = {
       { db }: Context,
       _info: any
     ) => {
+      const activeWallets = await db
+        .from(STOCK_WALLETS_TABLE)
+        .where({ journal_id: input.journalId })
+        .andWhere({ is_deleted: false })
+        .select("id", "balance");
+
+      // Parse first transaction date.
+      const transactionDateParsed = moment(input.transactionDate).toDate();
+
+      // If there are no match, create one otherwise
+      // use first match as wallet id; also update the
+      // wallet data if its existing.
+      let walletId = 0;
+      if (activeWallets.length > 0) {
+        const currentWallet = activeWallets[0];
+        walletId = currentWallet.id;
+
+        log.trace(currentWallet);
+        if (
+          input.action === WalletAction.DEPOSIT ||
+          input.action === WalletAction.CASHDIVS
+        ) {
+          const previousBalance = currentWallet.balance;
+          const totalWalletBalance = previousBalance + input.netAmount;
+          await db
+            .table(STOCK_WALLETS_TABLE)
+            .where({
+              id: walletId,
+            })
+            .update({
+              balance: totalWalletBalance,
+            });
+        } else if (input.action === WalletAction.WITHDRAWAL) {
+          const previousBalance = currentWallet.balance;
+          const totalWalletBalance = previousBalance - input.netAmount;
+
+          if (totalWalletBalance < 0) {
+            return {
+              code: "400",
+              success: false,
+              message: "Unable to withdraw amount from wallet as balance is not enough",
+            };
+          }
+
+          await db
+            .table(STOCK_WALLETS_TABLE)
+            .where({
+              id: walletId,
+            })
+            .update({
+              balance: totalWalletBalance,
+            });
+        } else {
+          // Redirect to error if unknown wallet action.
+          walletId = 0;
+        }
+      } else {
+        // Only accept on first wallet creation deposit.
+        if (input.action === WalletAction.DEPOSIT) {
+          const temp = await db.into(STOCK_WALLETS_TABLE).insert({
+            journal_id: input.journalId,
+            balance: input.netAmount,
+          });
+
+          walletId = temp[0];
+        }
+      }
+
+      if (walletId === 0) {
+        return {
+          code: "400",
+          success: false,
+          message: "Unable to create wallet transaction as wallet is empty",
+        };
+      }
+
       const id = await db.into(STOCK_WALLET_TRANSACTIONS_TABLE).insert({
         journal_id: input.journalId,
-        transaction_date: input.transactionDate,
+        wallet_id: walletId,
+        transaction_date: transactionDateParsed,
         action: input.action,
         gross_amount: input.grossAmount,
         fees: input.fees,
         net_amount: input.netAmount,
       });
 
+      log.trace(id);
       return {
         code: "201",
         success: true,
         message: "Journal was successfully added",
-        journal: {
-          id: id.toString(),
-          journalId: input.journalId,
-          transactionDate: input.transactionDate,
+        walletTransaction: {
+          wallet_id: walletId,
+          transaction_date: transactionDateParsed,
           action: input.action,
-          grossAmount: input.grossAmount,
+          gross_amount: input.grossAmount,
           fees: input.fees,
-          netAmount: input.netAmount,
+          net_amount: input.netAmount,
         },
       };
     },

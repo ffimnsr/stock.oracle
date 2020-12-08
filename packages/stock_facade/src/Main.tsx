@@ -2,11 +2,12 @@ import React from "react";
 import { render as Render } from "react-dom";
 import log from "loglevel";
 import _ from "lodash";
-import { App } from "./App";
+import { AppRouter } from "./App";
 import { createHttpLink, ApolloClient, ApolloProvider } from "@apollo/client";
 import { setContext } from "@apollo/client/link/context";
 import "@/assets/styles/main.scss";
 import { cache } from "@/Cache";
+import { BrowserRouter } from "react-router-dom";
 
 const WHITELIST_DOMAINS = ["localhost", "trade.foureveryoung.online"];
 const GRAPH_URI = process.env.REACT_APP_GRAPH_URI;
@@ -37,7 +38,9 @@ const client = new ApolloClient({
 function render(): void {
   Render(
     <ApolloProvider client={client}>
-      <App />
+      <BrowserRouter>
+        <AppRouter />
+      </BrowserRouter>
     </ApolloProvider>,
     document.getElementById("app"),
   );

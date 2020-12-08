@@ -39,7 +39,7 @@ const client = knex({
     password: process.env.DB_PASSWORD,
     timezone: "UTC",
     typeCast: (field: any, next: any) => {
-      if (field.type === "DATE") {
+      if (field.type === "DATE" || field.type === "DATETIME") {
         return moment(field.string()).toDate();
       }
       return next();

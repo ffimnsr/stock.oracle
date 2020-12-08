@@ -75,15 +75,16 @@ export const localTypeDefs = gql`
     transactionDateEnd: Float
     type: TradeType!
     shares: Float
+    buyShares: Float
     avgBuyPrice: Float
-    buyAmount: Float
+    sellShares: Float
     avgSellPrice: Float
-    sellAmount: Float
     status: TradeStatus
   }
 
   type TradeTransaction {
     stockId: ID!
+    tradeId: ID!
     action: TradeAction!
     grossPrice: Float
     shares: Float
@@ -105,6 +106,7 @@ export const localTypeDefs = gql`
   }
 
   type WalletTransaction {
+    walletId: ID!
     transactionDate: Float
     action: WalletAction!
     grossAmount: Float
@@ -152,6 +154,7 @@ export const localTypeDefs = gql`
 
   input AddWalletTransaction {
     journalId: ID!
+    walletId: ID!
     transactionDate: Float!
     action: WalletAction!
     grossAmount: Float!
@@ -183,14 +186,14 @@ export const localTypeDefs = gql`
     code: String!
     success: Boolean!
     message: String!
-    tradeTransaction: TradeTransaction
+    transaction: TradeTransaction
   }
 
   type AddWalletTransactionMutationResponse implements MutationResponse {
     code: String!
     success: Boolean!
     message: String!
-    walletTransaction: WalletTransaction
+    transaction: WalletTransaction
   }
 
   type Mutation {

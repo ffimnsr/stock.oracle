@@ -4,8 +4,10 @@ import axios from "axios";
 import styled from "styled-components";
 import { FixedSizeList } from "react-window";
 import AutoSizer from "react-virtualized-auto-sizer";
-import { Classes, Colors } from "@blueprintjs/core";
+import { Classes, Colors, Button, Divider } from "@blueprintjs/core";
+import { IconNames } from "@blueprintjs/icons";
 import classNames from "classnames";
+import { SpinnerLoad, HeaderSplitContainer, HeaderGroup, CustomH5 } from "@/components/Commons";
 
 const LoadingCell = styled.div`
   margin: auto;
@@ -60,32 +62,15 @@ export async function getTopGainers(): Promise<any> {
   return response;
 }
 
-export const TopGainersSecurityTable = (): JSX.Element => {
-  const [data, setData] = useState({
-    records: [],
-    count: 0,
-    isFetching: false,
-  });
+type Props = {
+  data: {
+    records: never[];
+    count: number;
+    isFetching: boolean;
+  };
+};
 
-  useEffect(() => {
-    const fetchTopGainers = async () => {
-      try {
-        setData({ ...data, isFetching: true });
-        const response = await getTopGainers();
-        setData({
-          records: response.data.records,
-          count: response.data.count,
-          isFetching: false,
-        });
-      } catch (e) {
-        log.error(e);
-        setData({ ...data, isFetching: false });
-      }
-    };
-
-    fetchTopGainers();
-  }, []);
-
+export const TopGainersSecurityTable = React.memo(({ data }: Props): JSX.Element => {
   return (
     <Container>
       <AutoSizer>
@@ -103,5 +88,51 @@ export const TopGainersSecurityTable = (): JSX.Element => {
         )}
       </AutoSizer>
     </Container>
+  );
+});
+
+export const TopGainersSecurityView = () => {
+  const [data, setData] = useState({
+    records: [],
+    count: 0,
+    isFetching: false,
+  });
+
+  const fetchTopGainers = async () => {
+    try {
+      setData({ ...data, isFetching: true });
+      const response = await getTopGainers();
+      setData({
+        records: response.data.records,
+        count: response.data.count,
+        isFetching: false,
+      });
+    } catch (e) {
+      log.error(e);
+      setData({ ...data, isFetching: false });
+    }
+  };
+
+  useEffect(() => {
+    fetchTopGainers();
+  }, []);
+
+  if (data.isFetching) {
+    return <SpinnerLoad />;
+  }
+
+  return (
+    <>
+      <HeaderSplitContainer>
+        <HeaderGroup style={{ display: "flex", alignItems: "center" }}>
+          <CustomH5>Top Gainers</CustomH5>
+        </HeaderGroup>
+        <HeaderGroup style={{ textAlign: "right" }}>
+          <Button minimal={true} icon={IconNames.REFRESH} onClick={() => fetchTopGainers()} />
+        </HeaderGroup>
+      </HeaderSplitContainer>
+      <Divider />
+      <TopGainersSecurityTable data={data} />
+    </>
   );
 };

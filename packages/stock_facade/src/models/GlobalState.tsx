@@ -1,5 +1,5 @@
-import { Stock } from "@/models/Stock";
+import { StockMinimal } from "@/models/Stock";
 
 export type GlobalState = {
-  currentStock: Stock;
+  currentStock: StockMinimal;
 };

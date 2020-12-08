@@ -5,3 +5,8 @@ export type Stock = {
   companyId: number;
   securitySymbolId: number;
 };
+
+export type StockMinimal = {
+  name: string;
+  symbol: string;
+};

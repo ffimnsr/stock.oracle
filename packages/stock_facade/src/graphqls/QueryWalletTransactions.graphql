@@ -1,0 +1,9 @@
+query QueryWalletTransactions($id: ID!) {
+  walletTransactions(id: $id) {
+    transactionDate
+    action
+    grossAmount
+    fees
+    netAmount
+  }
+}

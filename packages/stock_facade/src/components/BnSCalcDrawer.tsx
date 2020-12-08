@@ -121,7 +121,7 @@ type CustomLiProps = {
 const CustomLi = styled.li<CustomLiProps & React.HTMLProps<HTMLElement>>`
   color: white;
   padding: 3px !important;
-  background-color: ${props => props.inputColor || "white"}
+  background-color: ${(props) => props.inputColor || "white"};
 `;
 
 type DrawerProps = {
@@ -156,10 +156,7 @@ function useStickyState(defaultValue: any, key: string) {
   return [value, setValue];
 }
 
-export const BnSCalcDrawer: React.FC<DrawerProps> = ({
-  isOpen,
-  closeCb,
-}): JSX.Element => {
+export const BnSCalcDrawer = ({ isOpen, closeCb }: DrawerProps): JSX.Element => {
   const [formValues, setFormValues] = useStickyState(
     {
       commissionRate: "0.0025",

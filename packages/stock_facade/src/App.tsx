@@ -1,5 +1,6 @@
 /// <reference path="./types/mixins.d.ts" />
 import React, { useState, useEffect } from "react";
+import { BrowserRouter, Switch, Route } from "react-router-dom";
 import log from "loglevel";
 import { IconNames } from "@blueprintjs/icons";
 import {
@@ -19,16 +20,20 @@ import {
   Position,
   MenuItem,
   Colors,
+  NonIdealState,
 } from "@blueprintjs/core";
 import Highcharts from "highcharts/highstock";
 import NoDataToDisplay from "highcharts/modules/no-data-to-display";
 import styled from "styled-components";
+import { useHistory } from "react-router-dom";
 import { StockChart } from "@/components/StockChart";
 import { StockSearchBar } from "@/components/StockSearchBar";
 import { BnSCalcDrawer } from "@/components/BnSCalcDrawer";
-import { MostActiveSecurityTable } from "@/components/MostActiveSecurityTable";
-import { TopGainersSecurityTable } from "@/components/TopGainersSecurityTable";
-import { TopLosersSecurityTable } from "@/components/TopLosersSecurityTable";
+import { MostActiveSecurityView } from "@/components/MostActiveSecurityTable";
+import { TopGainersSecurityView } from "@/components/TopGainersSecurityTable";
+import { TopLosersSecurityView } from "@/components/TopLosersSecurityTable";
+import { CustomMain } from "@/components/Commons";
+import { AppJournal } from "@/Journal";
 
 FocusStyleManager.onlyShowFocusOnTabs();
 NoDataToDisplay(Highcharts);
@@ -36,10 +41,6 @@ NoDataToDisplay(Highcharts);
 const CustomStockSuggestContainer = styled.div`
   margin-left: 30px;
   width: 420px;
-`;
-
-const CustomMain = styled.main`
-  padding: 20px;
 `;
 
 const SplitContainer = styled.div`
@@ -52,18 +53,19 @@ const InnerContainer = styled(Card)`
   margin: 5px;
 `;
 
-const CustomH5 = styled(H5)`
-  margin-left: 5px;
+const NoMatchContainer = styled.div`
+  height: 92vh;
+  margin: auto;
 `;
 
-export function App(): JSX.Element {
+export const AppRouter = () => {
+  const history = useHistory();
   const [calcDrawerIsOpen, setCalcDrawerIsOpen] = useState(false);
-  const [journalDrawerIsOpen, setJournalDrawerIsOpen] = useState(false);
 
   const handleCalcOpen = () => setCalcDrawerIsOpen(true);
   const handleCalcClose = () => setCalcDrawerIsOpen(false);
-  const handleJournalOpen = () => setJournalDrawerIsOpen(true);
-  const handleJournalClose = () => setJournalDrawerIsOpen(false);
+  const handleOpenDashboard = () => history.push("/");
+  const handleOpenJournal = () => history.push("/journal");
 
   return (
     <div>
@@ -74,11 +76,24 @@ export function App(): JSX.Element {
               <Popover position={Position.BOTTOM_LEFT}>
                 <Button minimal={true} icon={IconNames.HOME} />
                 <Menu>
-                  <MenuItem icon={IconNames.DASHBOARD} text="Dashboard" />
-                  <MenuItem onClick={handleCalcOpen} icon={IconNames.CALCULATOR} text="Calculator (Common Stocks)" />
+                  <MenuItem
+                    onClick={handleOpenDashboard}
+                    icon={IconNames.DASHBOARD}
+                    text="Dashboard"
+                  />
+                  <MenuItem
+                    onClick={handleCalcOpen}
+                    icon={IconNames.CALCULATOR}
+                    text="Calculator (Common Stocks)"
+                  />
                   <MenuItem icon={IconNames.LAYOUT_AUTO} text="Calculator (Crypto)" />
                   <MenuItem icon={IconNames.FLOW_BRANCH} text="Risk Calculator" />
-                  <MenuItem onClick={handleJournalOpen} icon={IconNames.BOOK} text="Journal" />
+                  <MenuItem icon={IconNames.EYE_OPEN} text="Watchlist" />
+                  <MenuItem
+                    onClick={handleOpenJournal}
+                    icon={IconNames.BOOK}
+                    text="Journal"
+                  />
                 </Menu>
               </Popover>
             </NavbarHeading>
@@ -88,32 +103,71 @@ export function App(): JSX.Element {
             </CustomStockSuggestContainer>
           </NavbarGroup>
           <NavbarGroup align={Alignment.RIGHT}>
-            <Button onClick={handleCalcOpen} minimal={true} icon={IconNames.CALCULATOR} text="Calc" />
-            <Button onClick={handleJournalOpen} minimal={true} icon={IconNames.BOOK} text="Journal" />
+            <Button
+              onClick={handleCalcOpen}
+              minimal={true}
+              icon={IconNames.CALCULATOR}
+              text="Calc"
+            />
+            <Button
+              onClick={handleOpenJournal}
+              minimal={true}
+              icon={IconNames.BOOK}
+              text="Journal"
+            />
           </NavbarGroup>
         </Navbar>
       </header>
-      <CustomMain>
-        <StockChart />
-        <SplitContainer>
-          <InnerContainer interactive={true}>
-            <CustomH5>Most Active</CustomH5>
-            <Divider />
-            <MostActiveSecurityTable />
-          </InnerContainer>
-          <InnerContainer interactive={true}>
-            <CustomH5>Top Gainers</CustomH5>
-            <Divider />
-            <TopGainersSecurityTable />
-          </InnerContainer>
-          <InnerContainer interactive={true}>
-            <CustomH5>Top Losers</CustomH5>
-            <Divider />
-            <TopLosersSecurityTable />
-          </InnerContainer>
-        </SplitContainer>
-      </CustomMain>
+      <Switch>
+        <Route exact path="/">
+          <AppHome />
+        </Route>
+        <Route exact path="/journal">
+          <AppJournal />
+        </Route>
+        <Route path="*">
+          <NoMatch />
+        </Route>
+      </Switch>
       <BnSCalcDrawer isOpen={calcDrawerIsOpen} closeCb={handleCalcClose} />
     </div>
   );
-}
+};
+
+const NoMatch = () => {
+  const description = (
+    <>
+      We looked all over, but the page seems to have gotten away from us. Check the links
+      below to get back on track.
+    </>
+  );
+
+  return (
+    <NoMatchContainer>
+      <NonIdealState
+        icon={IconNames.AIRPLANE}
+        title="Page Not Found"
+        description={description}
+      />
+    </NoMatchContainer>
+  );
+};
+
+const AppHome = () => {
+  return (
+    <CustomMain>
+      <StockChart />
+      <SplitContainer>
+        <InnerContainer interactive={true}>
+          <MostActiveSecurityView />
+        </InnerContainer>
+        <InnerContainer interactive={true}>
+          <TopGainersSecurityView />
+        </InnerContainer>
+        <InnerContainer interactive={true}>
+          <TopLosersSecurityView />
+        </InnerContainer>
+      </SplitContainer>
+    </CustomMain>
+  );
+};

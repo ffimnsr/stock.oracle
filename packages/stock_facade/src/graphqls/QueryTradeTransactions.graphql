@@ -1,0 +1,13 @@
+query QueryTradeTransactions($id: ID!) {
+  tradeTransactions(id: $id) {
+    stockId
+    action
+    grossPrice
+    shares
+    grossAmount
+    fees
+    netAmount
+    transactionDate
+    remarks
+  }
+}

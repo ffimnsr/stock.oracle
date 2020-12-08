@@ -1,14 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React from "react";
 import log from "loglevel";
-import { useQuery, useReactiveVar } from "@apollo/client";
+import { useQuery } from "@apollo/client";
 import styled from "styled-components";
-// import { FixedSizeList } from "react-window";
-// import AutoSizer from "react-virtualized-auto-sizer";
 import BaseTable, { AutoResizer, Column, ColumnShape } from "react-base-table";
 import { Stock } from "@/models/Stock";
 import QueryStock from "@/graphqls/QueryStocks.graphql";
-import { Classes } from "@blueprintjs/core";
-import classNames from "classnames";
 
 const getColumnWidth = (columnIndex: number) => {
   let width = 150;
@@ -96,27 +92,5 @@ export const StocksTable = (): JSX.Element => {
         )}
       </AutoResizer>
     </Container>
-    // <BaseTable
-    //   height={600}
-    //   width={400}
-    //   columns={columns}
-    //   data={items}
-    //   useIsScrolling={true}
-    //   rowRenderer={rowRenderer}
-    // />
-
-    // <AutoSizer>
-    //   {({ height, width }) => (
-    //     <FixedSizeList
-    //       useIsScrolling={true}
-    //       height={height}
-    //       itemCount={numRows}
-    //       itemSize={35}
-    //       width={width}
-    //     >
-    //       {Row}
-    //     </FixedSizeList>
-    //   )}
-    // </AutoSizer>
   );
 };

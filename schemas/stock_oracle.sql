@@ -14,12 +14,10 @@
 
 
 -- Dumping database structure for fourwfhj_pse_stocks
-DROP DATABASE IF EXISTS `fourwfhj_pse_stocks`;
-CREATE DATABASE IF NOT EXISTS `fourwfhj_pse_stocks` /*!40100 DEFAULT CHARACTER SET latin1 */;
+CREATE DATABASE IF NOT EXISTS `fourwfhj_pse_stocks` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci */;
 USE `fourwfhj_pse_stocks`;
 
 -- Dumping structure for table fourwfhj_pse_stocks.eod_stock_data
-DROP TABLE IF EXISTS `eod_stock_data`;
 CREATE TABLE IF NOT EXISTS `eod_stock_data` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `date` date DEFAULT NULL,
@@ -36,7 +34,6 @@ CREATE TABLE IF NOT EXISTS `eod_stock_data` (
 -- Data exporting was unselected.
 
 -- Dumping structure for table fourwfhj_pse_stocks.eod_stock_data_test
-DROP TABLE IF EXISTS `eod_stock_data_test`;
 CREATE TABLE IF NOT EXISTS `eod_stock_data_test` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `date` date DEFAULT NULL,
@@ -48,12 +45,11 @@ CREATE TABLE IF NOT EXISTS `eod_stock_data_test` (
   `symbol` varchar(6) COLLATE utf8mb4_unicode_ci NOT NULL,
   UNIQUE KEY `id` (`id`),
   KEY `index_esd_indexes` (`symbol`)
-) ENGINE=InnoDB AUTO_INCREMENT=1106622 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=1107612 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Data exporting was unselected.
 
 -- Dumping structure for table fourwfhj_pse_stocks.journals
-DROP TABLE IF EXISTS `journals`;
 CREATE TABLE IF NOT EXISTS `journals` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -63,12 +59,11 @@ CREATE TABLE IF NOT EXISTS `journals` (
   `created_at` datetime NOT NULL DEFAULT current_timestamp(),
   `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
   UNIQUE KEY `id` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Data exporting was unselected.
 
 -- Dumping structure for table fourwfhj_pse_stocks.sectors
-DROP TABLE IF EXISTS `sectors`;
 CREATE TABLE IF NOT EXISTS `sectors` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `index_id` varchar(60) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -83,7 +78,6 @@ CREATE TABLE IF NOT EXISTS `sectors` (
 -- Data exporting was unselected.
 
 -- Dumping structure for table fourwfhj_pse_stocks.security_types
-DROP TABLE IF EXISTS `security_types`;
 CREATE TABLE IF NOT EXISTS `security_types` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `code` varchar(3) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -96,7 +90,6 @@ CREATE TABLE IF NOT EXISTS `security_types` (
 -- Data exporting was unselected.
 
 -- Dumping structure for table fourwfhj_pse_stocks.stocks
-DROP TABLE IF EXISTS `stocks`;
 CREATE TABLE IF NOT EXISTS `stocks` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `symbol` varchar(6) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -118,21 +111,19 @@ CREATE TABLE IF NOT EXISTS `stocks` (
 -- Data exporting was unselected.
 
 -- Dumping structure for table fourwfhj_pse_stocks.subsectors
-DROP TABLE IF EXISTS `subsectors`;
 CREATE TABLE IF NOT EXISTS `subsectors` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-  `index_id` varchar(60) NOT NULL,
-  `name` varchar(60) NOT NULL,
+  `index_id` varchar(60) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `name` varchar(60) COLLATE utf8mb4_unicode_ci NOT NULL,
   `internal_pse_id` int(11) NOT NULL,
   `created_at` datetime NOT NULL DEFAULT current_timestamp(),
   `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
   UNIQUE KEY `id` (`id`)
-) ENGINE=MyISAM AUTO_INCREMENT=28 DEFAULT CHARSET=latin1;
+) ENGINE=MyISAM AUTO_INCREMENT=28 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Data exporting was unselected.
 
 -- Dumping structure for table fourwfhj_pse_stocks.trades
-DROP TABLE IF EXISTS `trades`;
 CREATE TABLE IF NOT EXISTS `trades` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `journal_id` int(11) NOT NULL,
@@ -141,24 +132,24 @@ CREATE TABLE IF NOT EXISTS `trades` (
   `transaction_date_end` datetime DEFAULT NULL,
   `type` smallint(6) NOT NULL DEFAULT 1,
   `shares` decimal(18,1) DEFAULT NULL,
+  `buy_shares` decimal(18,1) DEFAULT NULL,
   `avg_buy_price` decimal(18,2) DEFAULT NULL,
-  `buy_amount` decimal(18,2) DEFAULT NULL,
+  `sell_shares` decimal(18,1) DEFAULT NULL,
   `avg_sell_price` decimal(18,2) DEFAULT NULL,
-  `sell_amount` decimal(18,2) DEFAULT NULL,
   `status` smallint(6) NOT NULL DEFAULT 1,
   `is_deleted` tinyint(1) NOT NULL DEFAULT 0,
   `created_at` datetime NOT NULL DEFAULT current_timestamp(),
   `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
   UNIQUE KEY `id` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Data exporting was unselected.
 
 -- Dumping structure for table fourwfhj_pse_stocks.trade_transactions
-DROP TABLE IF EXISTS `trade_transactions`;
 CREATE TABLE IF NOT EXISTS `trade_transactions` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `journal_id` int(11) NOT NULL,
+  `trade_id` int(11) NOT NULL,
   `stock_id` int(11) NOT NULL,
   `action` smallint(6) NOT NULL,
   `gross_price` decimal(18,2) NOT NULL,
@@ -172,12 +163,11 @@ CREATE TABLE IF NOT EXISTS `trade_transactions` (
   `created_at` datetime NOT NULL DEFAULT current_timestamp(),
   `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
   UNIQUE KEY `id` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=21 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Data exporting was unselected.
 
 -- Dumping structure for table fourwfhj_pse_stocks.wallets
-DROP TABLE IF EXISTS `wallets`;
 CREATE TABLE IF NOT EXISTS `wallets` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `journal_id` int(11) NOT NULL,
@@ -186,15 +176,15 @@ CREATE TABLE IF NOT EXISTS `wallets` (
   `created_at` datetime NOT NULL DEFAULT current_timestamp(),
   `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
   UNIQUE KEY `id` (`id`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Data exporting was unselected.
 
 -- Dumping structure for table fourwfhj_pse_stocks.wallet_transactions
-DROP TABLE IF EXISTS `wallet_transactions`;
 CREATE TABLE IF NOT EXISTS `wallet_transactions` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `journal_id` int(11) NOT NULL,
+  `wallet_id` int(11) NOT NULL,
   `transaction_date` datetime NOT NULL,
   `action` smallint(6) NOT NULL,
   `gross_amount` decimal(18,2) NOT NULL,

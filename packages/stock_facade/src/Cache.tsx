@@ -17,10 +17,7 @@ export const cache: InMemoryCache = new InMemoryCache({
 
 export const globalStateVar: ReactiveVar<GlobalState> = makeVar<GlobalState>({
   currentStock: {
-    "id": "11",
-    "name": "AREIT, Inc.",
-    "symbol": "AREIT",
-    "companyId": 679,
-    "securitySymbolId": 655,
+    "name": "SM PRIME HOLDINGS, INC.",
+    "symbol": "SMPH",
   },
 });

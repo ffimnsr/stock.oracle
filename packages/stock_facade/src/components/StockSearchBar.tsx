@@ -106,7 +106,7 @@ export const StockSearchBar = () => {
       itemsEqual={areStocksEqual}
       noResults={<MenuItem disabled={true} text="No results." />}
       onItemSelect={(stock: Stock) => {
-        globalStateVar({ currentStock: stock });
+        globalStateVar({ currentStock: { ...stock } });
         setCurrentStock(stock);
       }}
       popoverProps={{
