@@ -40,7 +40,12 @@ const client = knex({
     timezone: "UTC",
     typeCast: (field: any, next: any) => {
       if (field.type === "DATE" || field.type === "DATETIME") {
-        return moment(field.string()).toDate();
+        const dt = moment(field.string());
+        if (dt.isValid()) {
+          return dt.toDate();
+        } else {
+          return null;
+        }
       }
       return next();
     },
@@ -96,9 +101,7 @@ app.use(responseTime());
 
 server.applyMiddleware({ app });
 
-app.get("/", (_req: Request, res: Response) => {
-  res.send("Stock Oracle");
-});
+app.use(express.static("public"));
 
 app.post(
   "/management/fill_security_types",

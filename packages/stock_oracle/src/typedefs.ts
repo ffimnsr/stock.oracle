@@ -123,6 +123,8 @@ export const localTypeDefs = gql`
     stockData(symbol: String!): [StockDataItem]
     journals: [Journal]
     trades(id: ID!): [Trade]
+    activeTrades(id: ID!): [Trade]
+    closedTrades(id: ID!): [Trade]
     tradeTransactions(id: ID!): [TradeTransaction]
     wallets: [Wallet]
     wallet(id: ID!): Wallet

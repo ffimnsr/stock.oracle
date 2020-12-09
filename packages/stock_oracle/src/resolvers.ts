@@ -206,6 +206,46 @@ const resolvers = {
 
       return result;
     },
+    activeTrades: async (_parent: any, args: any, { db }: Context, _info: any) => {
+      const result = await db
+        .from(STOCK_TRADES_TABLE)
+        .where({ journal_id: args.id })
+        .andWhere({ status: TradeStatus.ACTIVE })
+        .select(
+          "stock_id",
+          "transaction_date_start",
+          "transaction_date_end",
+          "type",
+          "shares",
+          "buy_shares",
+          "avg_buy_price",
+          "sell_shares",
+          "avg_sell_price",
+          "status"
+        );
+
+      return result;
+    },
+    closedTrades: async (_parent: any, args: any, { db }: Context, _info: any) => {
+      const result = await db
+        .from(STOCK_TRADES_TABLE)
+        .where({ journal_id: args.id })
+        .andWhere({ status: TradeStatus.DISABLED })
+        .select(
+          "stock_id",
+          "transaction_date_start",
+          "transaction_date_end",
+          "type",
+          "shares",
+          "buy_shares",
+          "avg_buy_price",
+          "sell_shares",
+          "avg_sell_price",
+          "status"
+        );
+
+      return result;
+    },        
     tradeTransactions: async (
       _parent: any,
       args: any,

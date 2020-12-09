@@ -18,7 +18,7 @@ export enum TradeAction {
 export type Trade = {
   stockId: string;
   transactionDateStart: number;
-  transactionDateEnd: number;
+  transactionDateEnd: number | null;
   type: TradeType
   shares: number;
   buyShares: number;

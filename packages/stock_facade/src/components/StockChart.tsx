@@ -4,7 +4,7 @@ import { useQuery, useReactiveVar } from "@apollo/client";
 import Highcharts, { Options as HighchartsOptions } from "highcharts/highstock";
 import HighchartsReact from "highcharts-react-official";
 import { globalStateVar } from "@/Cache";
-import { StockData } from "@/models/StockData";
+import { StockData } from "@/models/Stock";
 import QueryStockData from "@/graphqls/QueryStockData.graphql";
 
 export const StockChart = () => {

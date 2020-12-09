@@ -5,10 +5,10 @@ query QueryTrades($id: ID!) {
     transactionDateEnd
     type
     shares
+    buyShares
     avgBuyPrice
-    buyAmount
+    sellShares
     avgSellPrice
-    sellAmount
     status
   }
 }

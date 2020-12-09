@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState } from "react";
 import log from "loglevel";
 import {
   Classes,
@@ -16,66 +16,15 @@ import {
 } from "@blueprintjs/core";
 import { IconNames } from "@blueprintjs/icons";
 import { useForm } from "react-hook-form";
-import styled, { StyledFunction } from "styled-components";
+import styled from "styled-components";
 import classNames from "classnames";
 import * as CalcUtility from "@/utils/CalcUtility";
-
-const NumberAbbreviation = {
-  BILLION: "b",
-  MILLION: "m",
-  THOUSAND: "k",
-};
-
-const NUMBER_ABBREVIATION_REGEX = /((\.\d+)|(\d+(\.\d+)?))(k|m|b)\b/gi;
-
-const roundValue = (value: number, precision: number = 1) => {
-  return Math.round(value * 10 ** precision) / 10 ** precision;
-};
-
-const nanStringToEmptyString = (value: string) => {
-  return value === "NaN" ? "" : value;
-};
-
-const expandAbbreviatedNumber = (value: string) => {
-  if (!value) return value;
-
-  const num = +value.substring(0, value.length - 1);
-  const lastChar = value.charAt(value.length - 1).toLowerCase();
-
-  let result: number = NaN;
-  if (lastChar === NumberAbbreviation.THOUSAND) {
-    result = num * 1e3;
-  } else if (lastChar === NumberAbbreviation.MILLION) {
-    result = num * 1e6;
-  } else if (lastChar === NumberAbbreviation.BILLION) {
-    result = num * 1e9;
-  }
-
-  const isValid = !isNaN(result);
-  if (isValid) result = roundValue(result);
-
-  return isValid ? result.toString() : "";
-};
-
-const expandNumberAbbreviationTerms = (value: string) => {
-  if (!value) return value;
-
-  return value.replace(NUMBER_ABBREVIATION_REGEX, expandAbbreviatedNumber);
-};
-
-const evaluateNumbers = (value: string) => {
-  if (!value) return value;
-
-  const trimmedValue = value.trim();
-  const numericValue = +trimmedValue;
-  const isValid = !isNaN(numericValue);
-
-  if (!isValid) return "";
-
-  if (numericValue < 0) return "";
-
-  return value;
-};
+import { useStickyState } from "@/Hooks";
+import {
+  expandNumberAbbreviationTerms,
+  nanStringToEmptyString,
+  evaluateNumbers,
+} from "@/components/Commons";
 
 const calculateNetGainAndNetLoss = (breakEvenPrice: number) => {
   return {
@@ -129,32 +78,12 @@ type DrawerProps = {
   closeCb: () => void;
 };
 
-type Inputs = {
+type FormInputs = {
   commissionRate: number;
   shares: number;
   buyPrice: number;
   sellPrice: number;
 };
-
-function useForceUpdate() {
-  const [, updateState] = useState<any>();
-  const update = useCallback(() => updateState({}), []);
-  return update;
-}
-
-function useStickyState(defaultValue: any, key: string) {
-  const [value, setValue] = useState(() => {
-    const stickyValue = window.localStorage.getItem(key);
-
-    return stickyValue !== null ? JSON.parse(stickyValue) : defaultValue;
-  });
-
-  useEffect(() => {
-    window.localStorage.setItem(key, JSON.stringify(value));
-  }, [key, value]);
-
-  return [value, setValue];
-}
 
 export const BnSCalcDrawer = ({ isOpen, closeCb }: DrawerProps): JSX.Element => {
   const [formValues, setFormValues] = useStickyState(
@@ -186,7 +115,7 @@ export const BnSCalcDrawer = ({ isOpen, closeCb }: DrawerProps): JSX.Element => 
     netLoss10: "",
     netLoss15: "",
   });
-  const { register, handleSubmit, errors } = useForm<Inputs>();
+  const { register, handleSubmit, errors } = useForm<FormInputs>();
 
   const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
     handleConfirm(e.target.name, e.target.value);
@@ -217,7 +146,7 @@ export const BnSCalcDrawer = ({ isOpen, closeCb }: DrawerProps): JSX.Element => 
     setFormValues({ ...formValues, [inputElement.name]: valueAsString });
   };
 
-  const onSubmit = (data: Inputs) => {
+  const onSubmit = (data: FormInputs) => {
     const buyGrossAmount = data.buyPrice * data.shares;
     const buyFees = CalcUtility.computeBuyFees(
       data.buyPrice,

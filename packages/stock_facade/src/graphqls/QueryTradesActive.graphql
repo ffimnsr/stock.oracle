@@ -1,0 +1,10 @@
+query QueryTradesActive($id: ID!) {
+  activeTrades(id: $id) {
+    stockId
+    transactionDateStart
+    type
+    shares
+    buyShares
+    avgBuyPrice
+  }
+}

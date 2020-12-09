@@ -2,9 +2,10 @@ import React from "react";
 import { render as Render } from "react-dom";
 import log from "loglevel";
 import _ from "lodash";
-import { AppRouter } from "./App";
-import { createHttpLink, ApolloClient, ApolloProvider } from "@apollo/client";
+import { AppRouter } from "@/App";
+import { createHttpLink, ApolloClient, ApolloProvider, ApolloLink } from "@apollo/client";
 import { setContext } from "@apollo/client/link/context";
+import { onError } from "@apollo/client/link/error";
 import "@/assets/styles/main.scss";
 import { cache } from "@/Cache";
 import { BrowserRouter } from "react-router-dom";
@@ -30,9 +31,20 @@ const authLink = setContext((_, { headers }) => {
   };
 });
 
+const errorLink = onError(({ graphQLErrors, networkError }) => {
+  if (graphQLErrors)
+    graphQLErrors.map(({ message, locations, path }) =>
+      console.log(
+        `[GraphQL error]: Message: ${message}, Location: ${locations}, Path: ${path}`,
+      ),
+    );
+
+  if (networkError) console.log(`[Network error]: ${networkError}`);
+});
+
 const client = new ApolloClient({
   cache,
-  link: authLink.concat(httpLink),
+  link: ApolloLink.from([authLink, errorLink, httpLink]),
 });
 
 function render(): void {

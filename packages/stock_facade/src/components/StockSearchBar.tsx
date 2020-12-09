@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import log from "loglevel";
 import { useQuery } from "@apollo/client";
 import { Button, MenuItem } from "@blueprintjs/core";
 import { ItemPredicate, ItemRenderer, Suggest } from "@blueprintjs/select";
 import { Stock } from "@/models/Stock";
-import { globalStateVar } from "@/Cache";
+import { globalStateVar, internalSymbolsVar } from "@/Cache";
 import QueryStocks from "@/graphqls/QueryStocks.graphql";
+import { useStickyState } from "@/Hooks";
 
 const StockSuggest = Suggest.ofType<Stock>();
 
@@ -95,7 +96,11 @@ export const StockSearchBar = () => {
   if (error) return <div>Error!</div>;
 
   const stocks: Stock[] = loading ? [] : data.stocks;
-
+  const memoizeStockSymbols = useMemo(() => stocks.map(x => x.symbol), [stocks]);
+  useEffect(() => {
+    internalSymbolsVar(memoizeStockSymbols);
+  });
+  
   return (
     <StockSuggest
       fill={true}

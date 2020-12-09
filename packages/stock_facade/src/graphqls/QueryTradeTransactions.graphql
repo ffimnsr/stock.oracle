@@ -1,6 +1,7 @@
 query QueryTradeTransactions($id: ID!) {
   tradeTransactions(id: $id) {
     stockId
+    tradeId
     action
     grossPrice
     shares

@@ -10,6 +10,11 @@ export const cache: InMemoryCache = new InMemoryCache({
             return globalStateVar();
           }
         },
+        internalSymbols: {
+          read() {
+            return internalSymbolsVar();
+          }
+        },
       },
     },
   },
@@ -21,3 +26,5 @@ export const globalStateVar: ReactiveVar<GlobalState> = makeVar<GlobalState>({
     "symbol": "SMPH",
   },
 });
+
+export const internalSymbolsVar: ReactiveVar<string[]> = makeVar<string[]>([]);

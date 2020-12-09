@@ -3,8 +3,9 @@ import webpack from "webpack";
 import path from "path";
 import merge from "webpack-merge";
 import TerserWebpackPlugin from "terser-webpack-plugin";
-import OptimizeCSSAssetsPlugin from "optimize-css-assets-webpack-plugin";
+import CssMinimizerPlugin from "css-minimizer-webpack-plugin";
 import { CleanWebpackPlugin } from "clean-webpack-plugin";
+import DotenvWebpack from "dotenv-webpack";
 import common from "./webpack.common";
 
 module.exports = merge(common, {
@@ -19,7 +20,7 @@ module.exports = merge(common, {
       new TerserWebpackPlugin({
         parallel: true,
       }),
-      new OptimizeCSSAssetsPlugin({}),
+      new CssMinimizerPlugin(),
     ],
   },
   output: {
@@ -27,6 +28,7 @@ module.exports = merge(common, {
   },  
   plugins: [
     new CleanWebpackPlugin(),
+    new DotenvWebpack(),
     new webpack.EnvironmentPlugin({
       NODE_ENV: "production",
     }),
