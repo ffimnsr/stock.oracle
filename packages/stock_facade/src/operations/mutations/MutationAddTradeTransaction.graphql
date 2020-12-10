@@ -1,0 +1,7 @@
+mutation MutationAddTradeTransaction($input: AddTradeTransaction!) {
+  addTradeTransaction(input: $input) {
+    code
+    success
+    message
+  }
+}

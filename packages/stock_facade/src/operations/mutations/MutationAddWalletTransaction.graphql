@@ -1,0 +1,7 @@
+mutation MutationAddWalletTransaction($input: AddWalletTransaction!) {
+  addWalletTransaction(id: $input) {
+    code
+    success
+    message
+  }
+}

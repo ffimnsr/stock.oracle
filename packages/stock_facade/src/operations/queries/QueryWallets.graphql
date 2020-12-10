@@ -1,0 +1,6 @@
+query QueryWallets {
+  wallets {
+    id
+    balance
+  }
+}

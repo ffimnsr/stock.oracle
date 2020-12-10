@@ -192,6 +192,7 @@ const resolvers = {
         .from(STOCK_TRADES_TABLE)
         .where({ journal_id: args.id })
         .select(
+          "id",
           "stock_id",
           "transaction_date_start",
           "transaction_date_end",
@@ -212,6 +213,7 @@ const resolvers = {
         .where({ journal_id: args.id })
         .andWhere({ status: TradeStatus.ACTIVE })
         .select(
+          "id",
           "stock_id",
           "transaction_date_start",
           "transaction_date_end",
@@ -232,6 +234,7 @@ const resolvers = {
         .where({ journal_id: args.id })
         .andWhere({ status: TradeStatus.DISABLED })
         .select(
+          "id",
           "stock_id",
           "transaction_date_start",
           "transaction_date_end",
@@ -256,6 +259,7 @@ const resolvers = {
         .from(STOCK_TRADE_TRANSACTIONS_TABLE)
         .where({ journal_id: args.id })
         .select(
+          "id",
           "stock_id",
           "trade_id",
           "action",
@@ -280,7 +284,7 @@ const resolvers = {
       const result = await db
         .from(STOCK_WALLETS_TABLE)
         .where({ journal_id: args.id })
-        .select("balance");
+        .select("id", "balance");
 
       return result;
     },
@@ -294,6 +298,7 @@ const resolvers = {
         .from(STOCK_WALLET_TRANSACTIONS_TABLE)
         .where({ journal_id: args.id })
         .select(
+          "id",
           "transaction_date",
           "action",
           "gross_amount",
@@ -394,7 +399,7 @@ const resolvers = {
           const totalBuyShares = currentTrade.buy_shares + input.shares;
           const totalActiveShares = currentTrade.shares + input.shares;
 
-          log.trace(
+          log.info(
             previousAvgBuyPrice,
             currentAvgBuyPrice,
             totalAvgBuyPrice,

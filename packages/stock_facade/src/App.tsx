@@ -34,6 +34,7 @@ import { TopGainersSecurityView } from "@/components/TopGainersSecurityTable";
 import { TopLosersSecurityView } from "@/components/TopLosersSecurityTable";
 import { CustomMain } from "@/components/Commons";
 import { AppJournal } from "@/Journal";
+import { AppStocksOverview } from "@/StocksOverview";
 
 FocusStyleManager.onlyShowFocusOnTabs();
 NoDataToDisplay(Highcharts);
@@ -66,6 +67,7 @@ export const AppRouter = () => {
   const handleCalcClose = () => setCalcDrawerIsOpen(false);
   const handleOpenDashboard = () => history.push("/");
   const handleOpenJournal = () => history.push("/journal");
+  const handleOpenOverview = () => history.push("/overview");
 
   return (
     <div>
@@ -80,6 +82,11 @@ export const AppRouter = () => {
                     onClick={handleOpenDashboard}
                     icon={IconNames.DASHBOARD}
                     text="Dashboard"
+                  />
+                  <MenuItem
+                    onClick={handleOpenOverview}
+                    icon={IconNames.SERIES_SEARCH}
+                    text="Stocks Overview"
                   />
                   <MenuItem
                     onClick={handleCalcOpen}
@@ -124,6 +131,9 @@ export const AppRouter = () => {
         </Route>
         <Route exact path="/journal">
           <AppJournal />
+        </Route>
+        <Route exact path="/overview">
+          <AppStocksOverview />
         </Route>
         <Route path="*">
           <NoMatch />

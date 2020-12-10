@@ -75,7 +75,7 @@ export function computePercentageSellPrice(breakEvenPrice: number, percentage: n
 export function computeBuyFees(
   price: number,
   shares: number,
-  brokerCommissionRate: number,
+  brokerCommissionRate?: number,
 ): number {
   if (price) {
     var stockWorth = computeStockWorth(price, shares);
@@ -96,7 +96,7 @@ export function computeSellFees(
   return computeBasicFees(stockWorth, brokerCommissionRate) + salesTax;
 }
 
-export function computeBasicFees(stockWorth: number, brokerCommissionRate: number): number {
+export function computeBasicFees(stockWorth: number, brokerCommissionRate?: number): number {
   var brokerCommission = computeBrokerCommission(stockWorth, brokerCommissionRate);
   var vat = computeVAT(brokerCommission);
   var fees = computePSEFee(stockWorth);

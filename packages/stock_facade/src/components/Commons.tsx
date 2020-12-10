@@ -2,6 +2,10 @@ import React from "react";
 import styled from "styled-components";
 import { H5, Spinner } from "@blueprintjs/core";
 
+export type JournalCommonProps = {
+  journalId: string;
+};
+
 export const CustomMain = styled.main`
   padding: 20px;
 `;
@@ -52,6 +56,8 @@ const NumberAbbreviation = {
 };
 
 const NUMBER_ABBREVIATION_REGEX = /((\.\d+)|(\d+(\.\d+)?))(k|m|b)\b/gi;
+
+export const DEFAULT_DATE_FORMAT = "YYYY-MM-DD";
 
 const roundValue = (value: number, precision: number = 1) => {
   return Math.round(value * 10 ** precision) / 10 ** precision;

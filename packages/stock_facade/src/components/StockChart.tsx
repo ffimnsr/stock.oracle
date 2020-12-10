@@ -5,12 +5,12 @@ import Highcharts, { Options as HighchartsOptions } from "highcharts/highstock";
 import HighchartsReact from "highcharts-react-official";
 import { globalStateVar } from "@/Cache";
 import { StockData } from "@/models/Stock";
-import QueryStockData from "@/graphqls/QueryStockData.graphql";
+import Q from "@/operations/queries";
 
 export const StockChart = () => {
   const globalState = useReactiveVar(globalStateVar);
   const { symbol, name } = globalState.currentStock;
-  const { loading, error, data } = useQuery(QueryStockData, {
+  const { loading, error, data } = useQuery(Q.QueryStockData, {
     variables: { symbol },
   });
   const chart = React.createRef<any>();

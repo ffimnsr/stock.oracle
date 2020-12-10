@@ -190,6 +190,17 @@ export const BnSCalcDrawer = ({ isOpen, closeCb }: DrawerProps): JSX.Element => 
       netProfit: netProfitWithPercentage,
       ...netGainAndNetLoss,
     });
+
+    log.trace(
+      buyGrossAmount,
+      buyFees,
+      buyNetAmount,
+      sellGrossAmount,
+      sellFees,
+      sellNetAmount,
+      breakEvenPrice,
+      netProfitWithPercentage,
+    );
   };
 
   return (

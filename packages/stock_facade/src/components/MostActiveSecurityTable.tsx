@@ -1,17 +1,13 @@
 import React, { useState, useEffect } from "react";
 import log from "loglevel";
-import axios from "axios";
+import axios, { CancelTokenSource } from "axios";
 import styled from "styled-components";
 import { FixedSizeList } from "react-window";
 import AutoSizer from "react-virtualized-auto-sizer";
-import { Classes, Colors, Button, Divider } from "@blueprintjs/core";
+import { Colors, Button, Divider } from "@blueprintjs/core";
 import { IconNames } from "@blueprintjs/icons";
-import classNames from "classnames";
 import { SpinnerLoad, HeaderSplitContainer, HeaderGroup, CustomH5 } from "@/components/Commons";
-
-const LoadingCell = styled.div`
-  margin: auto;
-`;
+import Axios from "axios";
 
 const Container = styled.div`
   height: 360px;
@@ -62,9 +58,12 @@ const Row = ({ index, data, style }: { index: any; data: any; style: any }) => {
   );
 };
 
-export async function getMostActive(): Promise<any> {
+export async function getMostActive(source: CancelTokenSource): Promise<any> {
   const response = await axios.get(
     "https://tote_proxy.alice-in-wonderland.workers.dev/stocks/get_top_security",
+    {
+      cancelToken: source.token,
+    }
   );
 
   const { data } = response;
@@ -105,29 +104,47 @@ export const MostActiveSecurityTable = React.memo(({ data }: Props): JSX.Element
 });
 
 export const MostActiveSecurityView = () => {
+  const cancelTokenSource = axios.CancelToken.source();
   const [data, setData] = useState({
     records: [],
     count: 0,
     isFetching: false,
   });
 
-  const fetchMostActive = async () => {
+  const fetchMostActive = async (source: CancelTokenSource) => {
     try {
       setData({ ...data, isFetching: true });
-      const response = await getMostActive();
+      const response = await getMostActive(source);
       setData({
         records: response.data.records,
         count: response.data.count,
         isFetching: false,
       });
     } catch (e) {
+      // Ignore Axios cancel throw as that is the
+      // one we cancelled.
+      if (Axios.isCancel(e)) {
+        return;
+      }
+
       log.error(e);
       setData({ ...data, isFetching: false });
     }
   };
 
   useEffect(() => {
-    fetchMostActive();
+    let mounted = true;
+
+    // Skip fetch if the component is suddenly unmounted.
+    // Undoing this may cause memory leaks.
+    if (mounted) {
+      fetchMostActive(cancelTokenSource);
+    }
+
+    return () => {
+      mounted = false;
+      cancelTokenSource.cancel();
+    };
   }, []);
 
   if (data.isFetching) {
@@ -141,7 +158,7 @@ export const MostActiveSecurityView = () => {
           <CustomH5>Most Active</CustomH5>
         </HeaderGroup>
         <HeaderGroup style={{ textAlign: "right" }}>
-          <Button minimal={true} icon={IconNames.REFRESH} onClick={() => fetchMostActive()} />
+          <Button minimal={true} icon={IconNames.REFRESH} onClick={() => fetchMostActive(cancelTokenSource)} />
         </HeaderGroup>
       </HeaderSplitContainer>
       <Divider />

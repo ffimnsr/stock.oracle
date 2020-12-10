@@ -1,5 +1,6 @@
 query QueryWalletTransactions($id: ID!) {
   walletTransactions(id: $id) {
+    id
     walletId
     transactionDate
     action

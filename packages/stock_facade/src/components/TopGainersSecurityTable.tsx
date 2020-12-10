@@ -1,17 +1,19 @@
 import React, { useState, useEffect } from "react";
 import log from "loglevel";
-import axios from "axios";
+import axios, { CancelTokenSource } from "axios";
 import styled from "styled-components";
 import { FixedSizeList } from "react-window";
 import AutoSizer from "react-virtualized-auto-sizer";
-import { Classes, Colors, Button, Divider } from "@blueprintjs/core";
+import { Colors, Button, Divider } from "@blueprintjs/core";
 import { IconNames } from "@blueprintjs/icons";
-import classNames from "classnames";
-import { SpinnerLoad, HeaderSplitContainer, HeaderGroup, CustomH5 } from "@/components/Commons";
+import {
+  SpinnerLoad,
+  HeaderSplitContainer,
+  HeaderGroup,
+  CustomH5,
+} from "@/components/Commons";
+import Axios from "axios";
 
-const LoadingCell = styled.div`
-  margin: auto;
-`;
 
 const Container = styled.div`
   height: 360px;
@@ -30,16 +32,16 @@ const CustomOveflowSpan = styled.div`
   text-overflow: ellipsis;
   white-space: nowrap;
   overflow: hidden;
-  color: ${Colors.GREEN1}
+  color: ${Colors.GREEN1};
 `;
 
 const CustomSpan = styled.div`
   flex: 1;
   text-align: right;
-  color: ${Colors.GREEN1}
+  color: ${Colors.GREEN1};
 `;
 
-const Row = ({ index, data, style }: { index: any, data: any, style: any }) => {
+const Row = ({ index, data, style }: { index: any; data: any; style: any }) => {
   const security = data[index];
   return (
     <RowContainer style={style}>
@@ -49,9 +51,12 @@ const Row = ({ index, data, style }: { index: any, data: any, style: any }) => {
   );
 };
 
-export async function getTopGainers(): Promise<any> {
+export async function getTopGainers(source: CancelTokenSource): Promise<any> {
   const response = await axios.get(
     "https://tote_proxy.alice-in-wonderland.workers.dev/stocks/get_advanced_security",
+    {
+      cancelToken: source.token,
+    },
   );
 
   const { data } = response;
@@ -70,51 +75,66 @@ type Props = {
   };
 };
 
-export const TopGainersSecurityTable = React.memo(({ data }: Props): JSX.Element => {
-  return (
-    <Container>
-      <AutoSizer>
-        {({ height, width }) => (
-          <FixedSizeList
-            useIsScrolling={true}
-            height={height}
-            itemCount={data.count}
-            itemData={data.records}
-            itemSize={35}
-            width={width}
-          >
-            {Row}
-          </FixedSizeList>
-        )}
-      </AutoSizer>
-    </Container>
-  );
-});
+export const TopGainersSecurityTable = React.memo(
+  ({ data }: Props): JSX.Element => {
+    return (
+      <Container>
+        <AutoSizer>
+          {({ height, width }) => (
+            <FixedSizeList
+              useIsScrolling={true}
+              height={height}
+              itemCount={data.count}
+              itemData={data.records}
+              itemSize={35}
+              width={width}
+            >
+              {Row}
+            </FixedSizeList>
+          )}
+        </AutoSizer>
+      </Container>
+    );
+  },
+);
 
 export const TopGainersSecurityView = () => {
+  const cancelTokenSource = axios.CancelToken.source();
   const [data, setData] = useState({
     records: [],
     count: 0,
     isFetching: false,
   });
 
-  const fetchTopGainers = async () => {
+  const fetchTopGainers = async (source: CancelTokenSource) => {
     try {
       setData({ ...data, isFetching: true });
-      const response = await getTopGainers();
+      const response = await getTopGainers(source);
       setData({
         records: response.data.records,
         count: response.data.count,
         isFetching: false,
       });
     } catch (e) {
+      if (Axios.isCancel(e)) {
+        return;
+      }
+
       log.error(e);
       setData({ ...data, isFetching: false });
     }
   };
 
   useEffect(() => {
-    fetchTopGainers();
+    let mounted = true;
+    if (mounted) {
+      fetchTopGainers(cancelTokenSource);
+    }
+
+    return () => {
+      mounted = false;
+      cancelTokenSource.cancel();
+    };
   }, []);
 
   if (data.isFetching) {
@@ -128,7 +148,11 @@ export const TopGainersSecurityView = () => {
           <CustomH5>Top Gainers</CustomH5>
         </HeaderGroup>
         <HeaderGroup style={{ textAlign: "right" }}>
-          <Button minimal={true} icon={IconNames.REFRESH} onClick={() => fetchTopGainers()} />
+          <Button
+            minimal={true}
+            icon={IconNames.REFRESH}
+            onClick={() => fetchTopGainers(cancelTokenSource)}
+          />
         </HeaderGroup>
       </HeaderSplitContainer>
       <Divider />

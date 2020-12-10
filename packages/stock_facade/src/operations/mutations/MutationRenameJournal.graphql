@@ -1,0 +1,7 @@
+mutation MutationRenameJournal($input: RenameJournalInput!) {
+  renameJournal(id: $input) {
+    code
+    success
+    message
+  }
+}

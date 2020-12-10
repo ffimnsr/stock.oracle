@@ -1,0 +1,7 @@
+mutation MutationAddJournal($input: AddJournalInput!) {
+  addJournal(id: $input) {
+    code
+    success
+    message
+  }
+}

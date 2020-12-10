@@ -1,5 +1,6 @@
 query QueryTradeTransactions($id: ID!) {
   tradeTransactions(id: $id) {
+    id
     stockId
     tradeId
     action

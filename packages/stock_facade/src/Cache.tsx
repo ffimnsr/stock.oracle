@@ -6,14 +6,21 @@ export const cache: InMemoryCache = new InMemoryCache({
     Query: {
       fields: {
         globalState: {
-          read () {
+          read() {
             return globalStateVar();
-          }
+          },
         },
         internalSymbols: {
           read() {
             return internalSymbolsVar();
-          }
+          },
+        },
+        activeTrades: {
+          // this stops the merge error happening
+          // https://github.com/apollographql/apollo-client/issues/6868
+          merge(_, incoming) {
+            return incoming;
+          },
         },
       },
     },
@@ -22,8 +29,8 @@ export const cache: InMemoryCache = new InMemoryCache({
 
 export const globalStateVar: ReactiveVar<GlobalState> = makeVar<GlobalState>({
   currentStock: {
-    "name": "SM PRIME HOLDINGS, INC.",
-    "symbol": "SMPH",
+    name: "SM PRIME HOLDINGS, INC.",
+    symbol: "SMPH",
   },
 });
 

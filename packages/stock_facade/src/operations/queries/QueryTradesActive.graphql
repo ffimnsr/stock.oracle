@@ -1,5 +1,6 @@
 query QueryTradesActive($id: ID!) {
   activeTrades(id: $id) {
+    id
     stockId
     transactionDateStart
     type

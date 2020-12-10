@@ -5,8 +5,7 @@ import { Button, MenuItem } from "@blueprintjs/core";
 import { ItemPredicate, ItemRenderer, Suggest } from "@blueprintjs/select";
 import { Stock } from "@/models/Stock";
 import { globalStateVar, internalSymbolsVar } from "@/Cache";
-import QueryStocks from "@/graphqls/QueryStocks.graphql";
-import { useStickyState } from "@/Hooks";
+import Q from "@/operations/queries";
 
 const StockSuggest = Suggest.ofType<Stock>();
 
@@ -91,7 +90,7 @@ function highlightText(text: string, query: string) {
 
 export const StockSearchBar = () => {
   const [currentStock, setCurrentStock] = useState<Stock>();
-  const { loading, error, data } = useQuery(QueryStocks);
+  const { loading, error, data } = useQuery(Q.QueryStocks);
 
   if (error) return <div>Error!</div>;
 

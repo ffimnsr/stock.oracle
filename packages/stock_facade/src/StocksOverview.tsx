@@ -4,7 +4,8 @@ import { useQuery } from "@apollo/client";
 import styled from "styled-components";
 import BaseTable, { AutoResizer, Column, ColumnShape } from "react-base-table";
 import { Stock } from "@/models/Stock";
-import QueryStock from "@/graphqls/QueryStocks.graphql";
+import Q from "@/operations/queries";
+import { CustomMain } from "@/components/Commons";
 
 const getColumnWidth = (columnIndex: number) => {
   let width = 150;
@@ -69,8 +70,8 @@ const Container = styled.div`
   height: 600px;
 `;
 
-export const StocksTable = (): JSX.Element => {
-  const { loading, error, data } = useQuery(QueryStock);
+const StocksTable = (): JSX.Element => {
+  const { loading, error, data } = useQuery(Q.QueryStocks);
 
   if (error) return <div>Error!</div>;
 
@@ -92,5 +93,13 @@ export const StocksTable = (): JSX.Element => {
         )}
       </AutoResizer>
     </Container>
+  );
+};
+
+export const AppStocksOverview = () => {
+  return (
+    <CustomMain>
+      <StocksTable />
+    </CustomMain>
   );
 };

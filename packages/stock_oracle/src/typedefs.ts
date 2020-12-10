@@ -70,6 +70,7 @@ export const localTypeDefs = gql`
   }
 
   type Trade {
+    id: ID!
     stockId: ID!
     transactionDateStart: Float
     transactionDateEnd: Float
@@ -83,6 +84,7 @@ export const localTypeDefs = gql`
   }
 
   type TradeTransaction {
+    id: ID!
     stockId: ID!
     tradeId: ID!
     action: TradeAction!
@@ -102,10 +104,12 @@ export const localTypeDefs = gql`
   }
 
   type Wallet {
+    id: ID!
     balance: Float
   }
 
   type WalletTransaction {
+    id: ID!
     walletId: ID!
     transactionDate: Float
     action: WalletAction!
@@ -202,10 +206,10 @@ export const localTypeDefs = gql`
     addJournal(input: AddJournalInput!): AddJournalMutationResponse
     renameJournal(input: RenameJournalInput!): RenameJournalMutationResponse
     addTradeTransaction(
-      input: AddTradeTransaction
+      input: AddTradeTransaction!
     ): AddTradeTransactionMutationResponse
     addWalletTransaction(
-      input: AddWalletTransaction
+      input: AddWalletTransaction!
     ): AddWalletTransactionMutationResponse
   }
 `;

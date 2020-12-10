@@ -1,41 +1,26 @@
-import React, { useState, useEffect, useMemo } from "react";
-import log from "loglevel";
-import moment from "moment";
-import { useQuery, useReactiveVar } from "@apollo/client";
+import React, { useState } from "react";
+import _ from "lodash";
+import { NetworkStatus, useQuery, useReactiveVar } from "@apollo/client";
 import { CustomMain, SpinnerLoadExpanded } from "@/components/Commons";
 import {
   Button,
   Card,
-  Classes,
-  ControlGroup,
   Dialog,
-  FormGroup,
-  HTMLSelect,
-  Icon,
   Intent,
-  NumericInput,
-  Position,
   Tab,
   Tabs,
 } from "@blueprintjs/core";
 import { IconNames } from "@blueprintjs/icons";
 import styled, { createGlobalStyle } from "styled-components";
 import BaseTable, { AutoResizer, ColumnShape } from "react-base-table";
-import { useForm } from "react-hook-form";
 import { Journal } from "@/models/Journal";
-import { Trade, TradeStatus } from "@/models/Trade";
-import QueryJournals from "@/graphqls/QueryJournals.graphql";
-import QueryTradesActive from "@/graphqls/QueryTradesActive.graphql";
-import { useStickyState } from "@/Hooks";
+import { Trade } from "@/models/Trade";
+import Q from "@/operations/queries";
 import { internalSymbolsVar } from "@/Cache";
 import * as CalcUtility from "@/utils/CalcUtility";
-import {
-  expandNumberAbbreviationTerms,
-  nanStringToEmptyString,
-  evaluateNumbers,
-} from "@/components/Commons";
-import classNames from "classnames";
-import { DateInput, IDateFormatProps } from "@blueprintjs/datetime";
+import { JournalCommonProps } from "@/components/Commons";
+import { AddTradeForm } from "@/components/AddTradeForm";
+import { AddJournalForm } from "@/components/AddJournalForm";
 
 type LocalQueryJournals = {
   journals: Journal[];
@@ -45,8 +30,9 @@ type LocalQueryTrades = {
   activeTrades: Trade[];
 };
 
-type JournalTableProps = {
-  journalId: string;
+type RowRendererParams = {
+  isScrolling: boolean;
+  cells: React.ReactNode[];
 };
 
 const TabGlobalStyle = createGlobalStyle`
@@ -61,12 +47,17 @@ const TabContent = styled.div`
   height: 80vh;
 `;
 
-const RightTextAlignContanier = styled.div`
-  text-align: right;
-`;
-
 const LoadingCell = styled.div`
   margin: auto;
+`;
+
+const SplitContainer = styled.div`
+  display: flex;
+`;
+
+const InnerContainer = styled(Card)`
+  flex: 1;
+  margin: 5px;
 `;
 
 const JournalButtonContainer = styled.div`
@@ -115,12 +106,13 @@ const columnNames = [
   "Profit/Loss",
   "Profit/Loss (%)",
 ];
+
 const columns = generateColumns(columnNames);
 const generateData = (columns: ColumnShape[], data: Trade[], symbols: string[]) =>
   data.map((row, rowIndex: number) => {
     return columns.reduce(
       (rowData: any, column: any, columnIndex: any) => {
-        const lastPrice = 9.5;
+        const lastPrice = 2.0;
         const totalCost = row.avgBuyPrice * row.shares;
         const marketValue = lastPrice * row.shares;
         const changePL = CalcUtility.computeChange(marketValue, totalCost);
@@ -129,15 +121,48 @@ const generateData = (columns: ColumnShape[], data: Trade[], symbols: string[]) 
           row.avgBuyPrice,
         );
 
+        let numberFormatOptions = {
+          style: "currency",
+          currency: "PHP",
+          minimumFractionDigits: 2,
+        };
+
         if (columnIndex == 0) rowData[column.dataKey] = symbols[parseInt(row.stockId)];
         if (columnIndex == 1) rowData[column.dataKey] = row.type;
-        if (columnIndex == 2) rowData[column.dataKey] = row.avgBuyPrice.toFixed(2);
-        if (columnIndex == 3) rowData[column.dataKey] = lastPrice.toFixed(2);
-        if (columnIndex == 4) rowData[column.dataKey] = row.shares;
-        if (columnIndex == 5) rowData[column.dataKey] = totalCost.toFixed(2);
-        if (columnIndex == 6) rowData[column.dataKey] = marketValue.toFixed(2);
-        if (columnIndex == 7) rowData[column.dataKey] = changePL.toFixed(2);
-        if (columnIndex == 8) rowData[column.dataKey] = changePercPL.toFixed(2);
+        if (columnIndex == 2)
+          rowData[column.dataKey] = Intl.NumberFormat(
+            "en-PH",
+            numberFormatOptions,
+          ).format(row.avgBuyPrice);
+        if (columnIndex == 3)
+          rowData[column.dataKey] = Intl.NumberFormat(
+            "en-PH",
+            numberFormatOptions,
+          ).format(lastPrice);
+        if (columnIndex == 4)
+          rowData[column.dataKey] = Intl.NumberFormat("en-PH", {
+            minimumFractionDigits: 1,
+          }).format(row.shares);
+        if (columnIndex == 5)
+          rowData[column.dataKey] = Intl.NumberFormat(
+            "en-PH",
+            numberFormatOptions,
+          ).format(totalCost);
+        if (columnIndex == 6)
+          rowData[column.dataKey] = Intl.NumberFormat(
+            "en-PH",
+            numberFormatOptions,
+          ).format(marketValue);
+        if (columnIndex == 7)
+          rowData[column.dataKey] = Intl.NumberFormat("en-PH", {
+            style: "decimal",
+            minimumFractionDigits: 2,
+          }).format(changePL);
+        if (columnIndex == 8)
+          rowData[column.dataKey] = Intl.NumberFormat("en-PH", {
+            style: "percent",
+            minimumFractionDigits: 2,
+          }).format(changePercPL);
 
         return rowData;
       },
@@ -148,107 +173,43 @@ const generateData = (columns: ColumnShape[], data: Trade[], symbols: string[]) 
     );
   });
 
-type RowRendererParams = {
-  isScrolling: boolean;
-  cells: React.ReactNode[];
-};
-
-type FormInputs = {
-  commissionRate: number;
-  shares: number;
-  buyPrice: number;
-  sellPrice: number;
-};
-
 const rowRenderer = ({ isScrolling, cells }: RowRendererParams) => {
   if (isScrolling) return <LoadingCell>Loading</LoadingCell>;
 
   return cells;
 };
 
-const momentFormatter = (format: string): IDateFormatProps => {
-  return {
-    formatDate: (date) => moment(date).format(format),
-    parseDate: (str) => moment(str, format).toDate(),
-    placeholder: `${format} (moment)`,
-  };
-};
-
-const JournalTable = ({ journalId }: JournalTableProps) => {
+const JournalTable = ({ journalId }: JournalCommonProps) => {
   const internalSymbols = useReactiveVar(internalSymbolsVar);
-  const [formValues, setFormValues] = useState({
-    journalId: "",
-    stockId: "",
-    action: "",
-    grossPrice: "",
-    shares: "",
-    grossAmount: "",
-    fees: "",
-    netAmount: "",
-    transactionDate: "",
-    remarks: "",
-  });
   const [addTradeDialogIsOpen, setAddTradeDialogIsOpen] = useState(false);
-  const { register, handleSubmit, errors } = useForm<FormInputs>();
-  const { loading, error, data } = useQuery(QueryTradesActive, {
+  const { loading, error, data, refetch, networkStatus } = useQuery(Q.QueryTradesActive, {
     variables: { id: journalId },
+    notifyOnNetworkStatusChange: true,
   });
 
   if (error) return <div>Error!</div>;
-  if (loading) return <SpinnerLoadExpanded />;
+  if (loading || networkStatus === NetworkStatus.refetch) return <SpinnerLoadExpanded />;
 
   const { activeTrades } = data as LocalQueryTrades;
   const items = generateData(columns, activeTrades, internalSymbols);
 
   const handleAddTradeDialogOpen = () => setAddTradeDialogIsOpen(true);
   const handleAddTradeDialogClose = () => setAddTradeDialogIsOpen(false);
-
-  const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
-    handleConfirm(e.target.name, e.target.value);
+  const handleAddTradeDialogCloseSuccess = () => {
+    setAddTradeDialogIsOpen(false);
+    refetch();
   };
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
-      const targetElement = e.target as HTMLInputElement;
-      handleConfirm(targetElement.name, targetElement.value);
-    }
-  };
-
-  const handleConfirm = (name: string, value: string) => {
-    let result = value;
-
-    result = expandNumberAbbreviationTerms(result);
-    result = evaluateNumbers(result);
-    result = nanStringToEmptyString(result);
-
-    setFormValues({ ...formValues, [name]: result });
-  };
-
-  const handleValueChange = (
-    _valueAsNumber: number,
-    valueAsString: string,
-    inputElement: HTMLInputElement,
-  ) => {
-    setFormValues({ ...formValues, [inputElement.name]: valueAsString });
-  };
-
-  const onSubmit = (data: FormInputs) => {
-    setFormValues({
-      ...formValues,
-      journalId: "",
-      grossAmount: "",
-      fees: "",
-      netAmount: "",
-      remarks: "",
-    });
-  };
-
-  const tradeActions = ["BUY", "SELL", "STOCK DIV", "IPO"];
-  const additionalDateProps = momentFormatter("YYYY-MM-DD");
 
   return (
     <section>
-      <Card>Hello</Card>
+      <SplitContainer>
+        <InnerContainer>
+          Hello
+        </InnerContainer>
+        <InnerContainer>
+          Hello
+        </InnerContainer>        
+      </SplitContainer>
       <JournalButtonContainer>
         <Button icon={IconNames.MANUALLY_ENTERED_DATA} onClick={handleAddTradeDialogOpen}>
           Add Trade
@@ -264,104 +225,7 @@ const JournalTable = ({ journalId }: JournalTableProps) => {
           usePortal={true}
           onClose={handleAddTradeDialogClose}
         >
-          <form onSubmit={handleSubmit(onSubmit)}>
-            <div className={Classes.DIALOG_BODY}>
-              <FormGroup label="Date" labelInfo="(required)">
-                <DateInput
-                  {...additionalDateProps}
-                  closeOnSelection={true}
-                  fill={true}
-                  shortcuts={true}
-                  reverseMonthAndYearMenus={true}
-                  defaultValue={new Date()}
-                  popoverProps={{ position: Position.BOTTOM }}
-                />
-              </FormGroup>
-              <FormGroup label="Stock" labelFor="input-stock-id" labelInfo="(required)">
-                <HTMLSelect
-                  id="input-stock-id"
-                  options={internalSymbols}
-                  fill={true}
-                  name="stockId"
-                />
-              </FormGroup>
-              <FormGroup label="Action" labelFor="input-action" labelInfo="(required)">
-                <HTMLSelect
-                  id="input-action"
-                  options={tradeActions}
-                  fill={true}
-                  name="action"
-                />
-              </FormGroup>
-              <FormGroup
-                label="Price"
-                labelFor="input-gross-price"
-                labelInfo="(required)"
-              >
-                <NumericInput
-                  id="input-gross-price"
-                  fill={true}
-                  allowNumericCharactersOnly={true}
-                  onValueChange={handleValueChange}
-                  buttonPosition="none"
-                  placeholder="Enter the price..."
-                  minorStepSize={0.00001}
-                  leftIcon={IconNames.DOLLAR}
-                  value={formValues.grossPrice}
-                  name="grossPrice"
-                  inputRef={register({ required: true })}
-                />
-              </FormGroup>
-              <FormGroup label="Shares" labelFor="input-shares" labelInfo="(required)">
-                <NumericInput
-                  id="input-shares"
-                  fill={true}
-                  allowNumericCharactersOnly={false}
-                  onBlur={handleBlur}
-                  onKeyDown={handleKeyDown}
-                  onValueChange={handleValueChange}
-                  buttonPosition="none"
-                  placeholder="Enter the number of shares..."
-                  minorStepSize={0.00001}
-                  value={formValues.shares}
-                  name="shares"
-                  inputRef={register({ required: true })}
-                />
-              </FormGroup>
-              <FormGroup
-                label="Total Fees"
-                helperText="The fee used when selling a common stock."
-              >
-                <ControlGroup fill={true}>
-                  <div className={classNames(Classes.INPUT_GROUP)}>
-                    <Icon icon={IconNames.DOLLAR} />
-                    <RightTextAlignContanier
-                      className={classNames(Classes.INPUT, Classes.DISABLED)}
-                    >
-                      {formValues.fees}
-                    </RightTextAlignContanier>
-                  </div>
-                </ControlGroup>
-              </FormGroup>
-              <FormGroup label="Total Net Amount" helperText="The amount to be earned.">
-                <ControlGroup fill={true}>
-                  <div className={classNames(Classes.INPUT_GROUP)}>
-                    <Icon icon={IconNames.DOLLAR} />
-                    <RightTextAlignContanier
-                      className={classNames(Classes.INPUT, Classes.DISABLED)}
-                    >
-                      {formValues.netAmount}
-                    </RightTextAlignContanier>
-                  </div>
-                </ControlGroup>
-              </FormGroup>
-            </div>
-            <div className={Classes.DIALOG_FOOTER}>
-              <div className={Classes.DIALOG_FOOTER_ACTIONS}>
-                <Button type="submit">Submit</Button>
-              </div>
-            </div>
-          </form>
+          <AddTradeForm journalId={journalId} closeCb={handleAddTradeDialogCloseSuccess} />
         </Dialog>
       </JournalButtonContainer>
       <TabContent>
@@ -382,22 +246,59 @@ const JournalTable = ({ journalId }: JournalTableProps) => {
   );
 };
 
+const AddNewJournalButton = () => {
+  const [addJournalDialogIsOpen, setAddJournalDialogIsOpen] = useState(false);
+
+  const handleAddJournalDialogOpen = () => setAddJournalDialogIsOpen(true);
+  const handleAddJournalDialogClose = () => setAddJournalDialogIsOpen(false);
+
+  return (
+    <div>
+      <Button
+        onClick={handleAddJournalDialogOpen}
+        outlined={true}
+        fill={true}
+        icon={IconNames.ADD}
+        intent={Intent.PRIMARY}
+      >
+        New Journal
+      </Button>
+      <Dialog
+        icon={IconNames.MANUALLY_ENTERED_DATA}
+        title="Add Journal"
+        isOpen={addJournalDialogIsOpen}
+        canEscapeKeyClose={false}
+        canOutsideClickClose={true}
+        autoFocus={true}
+        enforceFocus={true}
+        usePortal={true}
+        onClose={handleAddJournalDialogClose}
+      >
+        <AddJournalForm />
+      </Dialog>
+    </div>
+  );
+};
+
 export const AppJournal = () => {
-  const { loading, error, data } = useQuery(QueryJournals);
+  const { loading, error, data } = useQuery(Q.QueryJournals);
 
   if (error) return <div>Error!</div>;
   if (loading) return <SpinnerLoadExpanded />;
 
   const { journals } = data as LocalQueryJournals;
-  const tabs = journals.map((x) => (
-    <Tab
-      id={x.id}
-      key={x.id}
-      title={x.name}
-      panelClassName="custom-tab-panel-container"
-      panel={<JournalTable journalId={x.id} />}
-    />
-  ));
+  const tabs = journals.map((x) => {
+    const truncateName = _.truncate(x.name, { length: 18 });
+    return (
+      <Tab
+        id={x.id}
+        key={x.id}
+        title={truncateName}
+        panelClassName="custom-tab-panel-container"
+        panel={<JournalTable journalId={x.id} />}
+      />
+    );
+  });
 
   return (
     <CustomMain>
@@ -412,9 +313,7 @@ export const AppJournal = () => {
       >
         {tabs}
         <Tabs.Expander />
-        <Button outlined={true} fill={true} icon={IconNames.ADD} intent={Intent.PRIMARY}>
-          New Journal
-        </Button>
+        <AddNewJournalButton />
       </Tabs>
     </CustomMain>
   );

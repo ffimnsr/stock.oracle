@@ -1,5 +1,6 @@
 query QueryTrades($id: ID!) {
   trades(id: $id) {
+    id
     stockId
     transactionDateStart
     transactionDateEnd
