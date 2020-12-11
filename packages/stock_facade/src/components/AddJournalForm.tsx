@@ -175,12 +175,10 @@ export const AddJournalForm = () => {
     });
   };
 
-  const tradeActions = ["BUY", "SELL", "STOCK DIV", "IPO"];
-  const optionsStocks = internalSymbols.map((x, index) => ({
-    label: x,
-    value: index,
-  }));
-  const additionalDateProps = momentFormatter(DEFAULT_DATE_FORMAT);
+  const optionsExchanges = [{
+    label: "Philippine Stock Exchange (PSE)",
+    value: 1,
+  }];
 
   return (
     <form onSubmit={handleSubmit(onSubmit)}>
@@ -188,16 +186,16 @@ export const AddJournalForm = () => {
         <FormGroup label="Exchange" labelFor="input-exchange-id" labelInfo="(required)">
           <HTMLSelect
             id="input-exchange-id"
-            options={optionsStocks}
+            options={optionsExchanges}
             fill={true}
-            name="stockId"
+            name="exchangeId"
             onChange={handleChange}
             elementRef={register({ required: true })}
           />
         </FormGroup>
-        <FormGroup label="Shares" labelFor="input-shares" labelInfo="(required)">
+        <FormGroup label="Journal Name" labelFor="input-name" labelInfo="(required)">
           <NumericInput
-            id="input-shares"
+            id="input-name"
             fill={true}
             allowNumericCharactersOnly={false}
             onBlur={handleBlur}

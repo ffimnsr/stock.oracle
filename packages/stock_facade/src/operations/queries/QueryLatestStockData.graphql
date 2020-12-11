@@ -1,0 +1,10 @@
+query QueryLatestStockData {
+  latestStockData {
+    symbol
+    open
+    high
+    low
+    close
+    volume
+  }
+}

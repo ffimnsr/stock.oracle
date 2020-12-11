@@ -24,6 +24,7 @@ import {
   expandNumberAbbreviationTerms,
   nanStringToEmptyString,
   evaluateNumbers,
+  normalFormat,
 } from "@/components/Commons";
 
 const calculateNetGainAndNetLoss = (breakEvenPrice: number) => {
@@ -173,20 +174,20 @@ export const BnSCalcDrawer = ({ isOpen, closeCb }: DrawerProps): JSX.Element => 
       sellNetAmount,
       buyNetAmount,
     );
-    const netProfitWithPercentage = `${Intl.NumberFormat().format(
+    const netProfitWithPercentage = `${normalFormat(
       netProfit,
     )} (${netProfitPercentage.toFixed(2)}%)`;
 
     const netGainAndNetLoss = calculateNetGainAndNetLoss(breakEvenPrice);
 
     setComputedValues({
-      buyGrossAmount: Intl.NumberFormat().format(buyGrossAmount),
-      buyFees: Intl.NumberFormat().format(buyFees),
-      buyNetAmount: Intl.NumberFormat().format(buyNetAmount),
-      sellGrossAmount: Intl.NumberFormat().format(sellGrossAmount),
-      sellFees: Intl.NumberFormat().format(sellFees),
-      sellNetAmount: Intl.NumberFormat().format(sellNetAmount),
-      breakEvenPrice: Intl.NumberFormat().format(breakEvenPrice),
+      buyGrossAmount: normalFormat(buyGrossAmount),
+      buyFees: normalFormat(buyFees),
+      buyNetAmount: normalFormat(buyNetAmount),
+      sellGrossAmount: normalFormat(sellGrossAmount),
+      sellFees: normalFormat(sellFees),
+      sellNetAmount: normalFormat(sellNetAmount),
+      breakEvenPrice: normalFormat(breakEvenPrice),
       netProfit: netProfitWithPercentage,
       ...netGainAndNetLoss,
     });

@@ -94,7 +94,6 @@ export const nanStringToEmptyString = (value: string) => {
   return value === "NaN" ? "" : value;
 };
 
-
 export const evaluateNumbers = (value: string) => {
   if (!value) return value;
 
@@ -107,4 +106,42 @@ export const evaluateNumbers = (value: string) => {
   if (numericValue < 0) return "";
 
   return value;
+};
+
+export const currencyFormatOptions = {
+  style: "currency",
+  currency: "PHP",
+  minimumFractionDigits: 2,
+};
+
+export const decimalFormatOptions = {
+  style: "decimal",
+  minimumFractionDigits: 2,
+};
+
+export const percentFormatOptions = {
+  style: "percent",
+  minimumFractionDigits: 2,
+};
+
+export const currencyFormat = (value: number) => {
+  return Intl.NumberFormat("en-PH", currencyFormatOptions).format(value);
+};
+
+export const decimalFormat = (value: number) => {
+  return Intl.NumberFormat("en-PH", decimalFormatOptions).format(value);
+};
+
+export const percentFormat = (value: number) => {
+  return Intl.NumberFormat("en-PH", percentFormatOptions).format(value);
+};
+
+export const sharesFormat = (value: number) => {
+  return Intl.NumberFormat("en-PH", {
+    minimumFractionDigits: 1,
+  }).format(value);
+};
+
+export const normalFormat = (value: number) => {
+  return Intl.NumberFormat().format(value);
 };

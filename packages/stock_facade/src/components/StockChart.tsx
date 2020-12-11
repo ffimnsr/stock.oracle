@@ -4,7 +4,7 @@ import { useQuery, useReactiveVar } from "@apollo/client";
 import Highcharts, { Options as HighchartsOptions } from "highcharts/highstock";
 import HighchartsReact from "highcharts-react-official";
 import { globalStateVar } from "@/Cache";
-import { StockData } from "@/models/Stock";
+import { StockDataItem } from "@/models";
 import Q from "@/operations/queries";
 
 export const StockChart = () => {
@@ -26,7 +26,7 @@ export const StockChart = () => {
 
   const ohlc = loading
     ? []
-    : data.stockData.map((x: StockData) => ({
+    : data.stockData.map((x: StockDataItem) => ({
         x: x.date,
         open: x.open,
         high: x.high,
@@ -36,7 +36,7 @@ export const StockChart = () => {
 
   const volume = loading
     ? []
-    : data.stockData.map((x: StockData) => ({
+    : data.stockData.map((x: StockDataItem) => ({
         x: x.date,
         y: x.volume,
       }));

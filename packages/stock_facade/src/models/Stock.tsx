@@ -11,7 +11,17 @@ export type StockMinimal = {
   symbol: string;
 };
 
-export type StockData = {
+export type StockDataItem = {
+  date: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+};
+
+export type LatestStockDataItem = {
+  symbol: string;
   date: string;
   open: number;
   high: number;

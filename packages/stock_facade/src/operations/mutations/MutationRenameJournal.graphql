@@ -1,7 +1,11 @@
 mutation MutationRenameJournal($input: RenameJournalInput!) {
-  renameJournal(id: $input) {
+  renameJournal(input: $input) {
     code
     success
     message
+    journal {
+      id
+      name
+    }
   }
 }

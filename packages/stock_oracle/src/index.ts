@@ -1,7 +1,7 @@
 import express, { Request, Response } from "express";
-import cors from "cors";
+// import cors from "cors";
 import bodyParser from "body-parser";
-import morgan from "morgan";
+// import morgan from "morgan";
 import compression from "compression";
 import responseTime from "response-time";
 import basicAuth from "express-basic-auth";
@@ -73,15 +73,15 @@ const server = new ApolloServer({
 const app = express();
 
 app.set("dao", client);
-app.use(
-  cors({
-    credentials: true,
-    origin: true,
-    methods: ["GET", "POST"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-    maxAge: 600,
-  })
-);
+// app.use(
+//   cors({
+//     credentials: true,
+//     origin: true,
+//     methods: ["GET", "POST"],
+//     allowedHeaders: ["Content-Type", "Authorization"],
+//     maxAge: 600,
+//   })
+// );
 
 if (isProduction()) {
   app.use(
@@ -95,7 +95,7 @@ if (isProduction()) {
 
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
-app.use(morgan("dev"));
+// app.use(morgan("dev"));
 app.use(compression());
 app.use(responseTime());
 
@@ -255,7 +255,7 @@ app.post(
     if (isMainThread) {
       let worker = new Worker(__dirname + "/workers/archive_trading_data.js");
       worker.on("message", (data) => {
-        log.trace(data);
+        log.info(data);
       });
       worker.on("error", (e) => {
         log.error("Unable to archive data: " + e.message);

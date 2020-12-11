@@ -40,6 +40,16 @@ export const localTypeDefs = gql`
     volume: Float
   }
 
+  type LatestStockDataItem {
+    symbol: String
+    date: Float
+    open: Float
+    high: Float
+    low: Float
+    close: Float
+    volume: Float
+  }  
+
   enum JournalStatus {
     ACTIVE
     DISABLED
@@ -125,6 +135,7 @@ export const localTypeDefs = gql`
     subsectors: [Subsector!]
     stocks: [Stock!]
     stockData(symbol: String!): [StockDataItem]
+    latestStockData: [LatestStockDataItem]
     journals: [Journal]
     trades(id: ID!): [Trade]
     activeTrades(id: ID!): [Trade]

@@ -3,5 +3,8 @@ mutation MutationAddTradeTransaction($input: AddTradeTransaction!) {
     code
     success
     message
+    transaction {
+      id
+    }
   }
 }

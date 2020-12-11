@@ -1,5 +1,6 @@
 /// <reference path="../../types/mixins.d.ts" />
 import QueryJournals from "./QueryJournals.graphql";
+import QueryLatestStockData from "./QueryLatestStockData.graphql";
 import QueryStockData from "./QueryStockData.graphql";
 import QueryStocks from "./QueryStocks.graphql";
 import QueryTrades from "./QueryTrades.graphql";
@@ -11,6 +12,7 @@ import QueryWalletTransactions from "./QueryWalletTransactions.graphql";
 
 export default {
   QueryJournals,
+  QueryLatestStockData,
   QueryStockData,
   QueryStocks,
   QueryTrades,

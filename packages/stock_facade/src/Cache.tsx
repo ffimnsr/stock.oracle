@@ -1,5 +1,5 @@
 import { InMemoryCache, ReactiveVar, makeVar } from "@apollo/client";
-import { GlobalState } from "@/models/GlobalState";
+import { GlobalState } from "@/models";
 
 export const cache: InMemoryCache = new InMemoryCache({
   typePolicies: {

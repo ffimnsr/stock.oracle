@@ -3,7 +3,7 @@ import log from "loglevel";
 import { useQuery } from "@apollo/client";
 import { Button, MenuItem } from "@blueprintjs/core";
 import { ItemPredicate, ItemRenderer, Suggest } from "@blueprintjs/select";
-import { Stock } from "@/models/Stock";
+import { Stock } from "@/models";
 import { globalStateVar, internalSymbolsVar } from "@/Cache";
 import Q from "@/operations/queries";
 

@@ -13,6 +13,7 @@ import {
   STOCK_TRADE_TRANSACTIONS_TABLE,
   STOCK_WALLETS_TABLE,
   STOCK_WALLET_TRANSACTIONS_TABLE,
+  STOCK_LATEST_DATA_TABLE,
 } from "./globals";
 
 type Context = {
@@ -180,6 +181,19 @@ const resolvers = {
 
       return result;
     },
+    latestStockData: async (
+      _parent: any,
+      _args: any,
+      context: Context,
+      _info: any
+    ) => {
+      const { db } = context;
+      const result = await db
+        .from(STOCK_LATEST_DATA_TABLE)
+        .select("symbol", "date", "open", "high", "low", "close", "volume");
+
+      return result;
+    },    
     journals: async (_parent: any, _args: any, { db }: Context, _info: any) => {
       const result = await db
         .from(STOCK_JOURNALS_TABLE)
@@ -338,7 +352,7 @@ const resolvers = {
       { db }: Context,
       _info: any
     ) => {
-      const id = await db
+      await db
         .table(STOCK_JOURNALS_TABLE)
         .where({ id: input.id })
         .update({
@@ -350,7 +364,7 @@ const resolvers = {
         success: true,
         message: "Journal was successfully updated",
         journal: {
-          id: id.toString(),
+          id: input.id,
           name: input.name,
         },
       };
@@ -399,7 +413,7 @@ const resolvers = {
           const totalBuyShares = currentTrade.buy_shares + input.shares;
           const totalActiveShares = currentTrade.shares + input.shares;
 
-          log.info(
+          log.trace(
             previousAvgBuyPrice,
             currentAvgBuyPrice,
             totalAvgBuyPrice,
@@ -497,6 +511,7 @@ const resolvers = {
         success: true,
         message: "Trade transaction was successfully added",
         transaction: {
+          id: id[0].toString(),
           stock_id: input.stockId,
           trade_id: tradeId,
           action: input.action,
@@ -608,6 +623,7 @@ const resolvers = {
         success: true,
         message: "Journal was successfully added",
         walletTransaction: {
+          id: id[0].toString(),
           wallet_id: walletId,
           transaction_date: transactionDateParsed,
           action: input.action,

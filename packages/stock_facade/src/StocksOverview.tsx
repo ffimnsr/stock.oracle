@@ -3,9 +3,11 @@ import log from "loglevel";
 import { useQuery } from "@apollo/client";
 import styled from "styled-components";
 import BaseTable, { AutoResizer, Column, ColumnShape } from "react-base-table";
-import { Stock } from "@/models/Stock";
+import { LatestStockDataItem, Stock } from "@/models";
 import Q from "@/operations/queries";
-import { CustomMain } from "@/components/Commons";
+import { currencyFormat, CustomMain, normalFormat } from "@/components/Commons";
+import classNames from "classnames";
+import { Classes } from "@blueprintjs/core";
 
 const getColumnWidth = (columnIndex: number) => {
   let width = 150;
@@ -20,49 +22,72 @@ const getColumnWidth = (columnIndex: number) => {
 
 const columnPrefix = "column-";
 const rowPrefix = "row-";
-const generateColumns = (columnNames: string[]) => 
-  columnNames.map((columnName: string, columnIndex: number): ColumnShape => ({
-    key: `${columnPrefix}${columnIndex}`,
-    dataKey: `${columnPrefix}${columnIndex}`,
-    title: columnName,
-    width: getColumnWidth(columnIndex), 
-    flexGrow: 1,
-    flexShrink: 0,
-  }));
+const generateColumns = (columnNames: string[]) =>
+  columnNames.map(
+    (columnName: string, columnIndex: number): ColumnShape => ({
+      key: `${columnPrefix}${columnIndex}`,
+      dataKey: `${columnPrefix}${columnIndex}`,
+      title: columnName,
+      width: getColumnWidth(columnIndex),
+      flexGrow: 1,
+      flexShrink: 0,
+    }),
+  );
 
-const columnNames = ["ID", "Name", "Symbol", "Company ID", "Security Symbol ID"];
+const columnNames = ["Symbol", "Name", "Symbol", "Last Price", "Volume"];
 const columns = generateColumns(columnNames);
-const generateData = (columns: any, data: Stock[]) =>
+const generateData = (
+  columns: any,
+  data: Stock[],
+  latestStockData: LatestStockDataItem[],
+) =>
   data.map((row, rowIndex: number) => {
     return columns.reduce(
       (rowData: any, column: any, columnIndex: any) => {
-        if (columnIndex == 0) rowData[column.dataKey] = row.id;
-        if (columnIndex == 1) rowData[column.dataKey] = row.name;
-        if (columnIndex == 2) rowData[column.dataKey] = row.symbol;
-        if (columnIndex == 3) rowData[column.dataKey] = row.companyId;
-        if (columnIndex == 4) rowData[column.dataKey] = row.securitySymbolId;
+        const symbol = row.symbol;
+        const stockData = latestStockData.find((x) => x.symbol === symbol);
 
-        return rowData
+        if (columnIndex == 0) rowData[column.dataKey] = symbol;
+        if (columnIndex == 1) rowData[column.dataKey] = row.name;
+        if (columnIndex == 2) rowData[column.dataKey] = symbol;
+        if (columnIndex == 3)
+          rowData[column.dataKey] = stockData ? currencyFormat(stockData.close) : 0;
+        if (columnIndex == 4)
+          rowData[column.dataKey] = stockData ? normalFormat(stockData.volume) : 0;
+
+        return rowData;
       },
       {
         id: `${rowPrefix}${rowIndex}`,
         parentId: null,
-      }
+      },
     );
   });
 
 type RowRendererParams = {
   isScrolling: boolean;
   cells: React.ReactNode[];
+  rowData: any;
 };
 
-const LoadingCell = styled.div`
-  margin: auto;
-`;
+const rowRenderer = ({ isScrolling, cells, rowData }: RowRendererParams) => {
+  if (isScrolling) {
+    return cells.map((x, index) => {
+      return (
+        <div
+          key={index}
+          role="gridcell"
+          className="BaseTable__row-cell"
+          style={(x as React.ReactElement).props.style}
+        >
+          <div className={classNames("BaseTable__row-cell-text", Classes.SKELETON)}>
+            {rowData[`column-${index}`]}
+          </div>
+        </div>
+      );
+    });
+  }
 
-const rowRenderer = ({ isScrolling, cells }: RowRendererParams) => {
-  if (isScrolling) return <LoadingCell>Loading</LoadingCell>;
-  
   return cells;
 };
 
@@ -71,17 +96,21 @@ const Container = styled.div`
 `;
 
 const StocksTable = (): JSX.Element => {
-  const { loading, error, data } = useQuery(Q.QueryStocks);
+  const stocksQuery = useQuery(Q.QueryStocks);
+  const latestStockDataQuery = useQuery(Q.QueryLatestStockData);
 
-  if (error) return <div>Error!</div>;
+  if (stocksQuery.error || latestStockDataQuery.error) return <div>Error!</div>;
 
-  const stocks: Stock[] = loading ? [] : data.stocks;
-  const items = generateData(columns, stocks);
+  const stocks: Stock[] = stocksQuery.loading ? [] : stocksQuery.data.stocks;
+  const latestStockData: LatestStockDataItem[] = latestStockDataQuery.loading
+    ? []
+    : latestStockDataQuery.data.latestStockData;
+  const items = generateData(columns, stocks, latestStockData);
 
   return (
     <Container>
       <AutoResizer>
-        {({ height, width }) => (  
+        {({ height, width }) => (
           <BaseTable
             height={height}
             width={width}

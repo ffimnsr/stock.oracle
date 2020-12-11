@@ -13,6 +13,7 @@ export const BATCH_INSERT_CHUNK_SIZE = 30;
 export const STOCK_DATA_TABLE = isProduction()
   ? "eod_stock_data"
   : "eod_stock_data_test";
+export const STOCK_LATEST_DATA_TABLE = "latest_stock_data_by_symbol"
 export const STOCK_SYMBOLS_TABLE = "stocks";
 export const STOCK_SECURITY_TYPES_TABLE = "security_types";
 export const STOCK_SECTORS_TABLE = "sectors";

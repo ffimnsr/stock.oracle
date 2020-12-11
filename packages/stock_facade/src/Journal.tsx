@@ -1,38 +1,59 @@
 import React, { useState } from "react";
 import _ from "lodash";
-import { NetworkStatus, useQuery, useReactiveVar } from "@apollo/client";
-import { CustomMain, SpinnerLoadExpanded } from "@/components/Commons";
+import { NetworkStatus, useMutation, useQuery, useReactiveVar } from "@apollo/client";
+import {
+  currencyFormat,
+  CustomMain,
+  decimalFormat,
+  percentFormat,
+  sharesFormat,
+  SpinnerLoadExpanded,
+} from "@/components/Commons";
 import {
   Button,
   Card,
+  Classes,
   Dialog,
+  EditableText,
+  H3,
+  H4,
+  H5,
+  HTMLTable,
   Intent,
+  Position,
   Tab,
   Tabs,
+  Toaster,
 } from "@blueprintjs/core";
 import { IconNames } from "@blueprintjs/icons";
 import styled, { createGlobalStyle } from "styled-components";
 import BaseTable, { AutoResizer, ColumnShape } from "react-base-table";
-import { Journal } from "@/models/Journal";
-import { Trade } from "@/models/Trade";
+import { Journal, Trade, LatestStockDataItem } from "@/models";
 import Q from "@/operations/queries";
+import M from "@/operations/mutations";
 import { internalSymbolsVar } from "@/Cache";
 import * as CalcUtility from "@/utils/CalcUtility";
-import { JournalCommonProps } from "@/components/Commons";
 import { AddTradeForm } from "@/components/AddTradeForm";
 import { AddJournalForm } from "@/components/AddJournalForm";
+import log from "loglevel";
+import classNames from "classnames";
 
 type LocalQueryJournals = {
   journals: Journal[];
 };
 
-type LocalQueryTrades = {
+type LocalQueryActiveTrades = {
   activeTrades: Trade[];
+};
+
+type LocalQueryLatestStockData = {
+  latestStockData: LatestStockDataItem[];
 };
 
 type RowRendererParams = {
   isScrolling: boolean;
   cells: React.ReactNode[];
+  rowData: any;
 };
 
 const TabGlobalStyle = createGlobalStyle`
@@ -64,6 +85,11 @@ const JournalButtonContainer = styled.div`
   display: flex;
   justify-content: right;
   margin: 10px;
+`;
+
+const CustomTd = styled.td`
+  padding: 3px 0 !important;
+  box-shadow: none !important;
 `;
 
 const getColumnWidth = (columnIndex: number) => {
@@ -108,11 +134,18 @@ const columnNames = [
 ];
 
 const columns = generateColumns(columnNames);
-const generateData = (columns: ColumnShape[], data: Trade[], symbols: string[]) =>
+const generateData = (
+  columns: ColumnShape[],
+  data: Trade[],
+  symbols: string[],
+  latestStockData: LatestStockDataItem[],
+) =>
   data.map((row, rowIndex: number) => {
     return columns.reduce(
       (rowData: any, column: any, columnIndex: any) => {
-        const lastPrice = 2.0;
+        const symbol = symbols[parseInt(row.stockId)];
+        const stockData = latestStockData.find((x) => x.symbol === symbol);
+        const lastPrice = stockData!.close;
         const totalCost = row.avgBuyPrice * row.shares;
         const marketValue = lastPrice * row.shares;
         const changePL = CalcUtility.computeChange(marketValue, totalCost);
@@ -121,48 +154,15 @@ const generateData = (columns: ColumnShape[], data: Trade[], symbols: string[]) 
           row.avgBuyPrice,
         );
 
-        let numberFormatOptions = {
-          style: "currency",
-          currency: "PHP",
-          minimumFractionDigits: 2,
-        };
-
-        if (columnIndex == 0) rowData[column.dataKey] = symbols[parseInt(row.stockId)];
+        if (columnIndex == 0) rowData[column.dataKey] = symbol;
         if (columnIndex == 1) rowData[column.dataKey] = row.type;
-        if (columnIndex == 2)
-          rowData[column.dataKey] = Intl.NumberFormat(
-            "en-PH",
-            numberFormatOptions,
-          ).format(row.avgBuyPrice);
-        if (columnIndex == 3)
-          rowData[column.dataKey] = Intl.NumberFormat(
-            "en-PH",
-            numberFormatOptions,
-          ).format(lastPrice);
-        if (columnIndex == 4)
-          rowData[column.dataKey] = Intl.NumberFormat("en-PH", {
-            minimumFractionDigits: 1,
-          }).format(row.shares);
-        if (columnIndex == 5)
-          rowData[column.dataKey] = Intl.NumberFormat(
-            "en-PH",
-            numberFormatOptions,
-          ).format(totalCost);
-        if (columnIndex == 6)
-          rowData[column.dataKey] = Intl.NumberFormat(
-            "en-PH",
-            numberFormatOptions,
-          ).format(marketValue);
-        if (columnIndex == 7)
-          rowData[column.dataKey] = Intl.NumberFormat("en-PH", {
-            style: "decimal",
-            minimumFractionDigits: 2,
-          }).format(changePL);
-        if (columnIndex == 8)
-          rowData[column.dataKey] = Intl.NumberFormat("en-PH", {
-            style: "percent",
-            minimumFractionDigits: 2,
-          }).format(changePercPL);
+        if (columnIndex == 2) rowData[column.dataKey] = currencyFormat(row.avgBuyPrice);
+        if (columnIndex == 3) rowData[column.dataKey] = currencyFormat(lastPrice);
+        if (columnIndex == 4) rowData[column.dataKey] = sharesFormat(row.shares);
+        if (columnIndex == 5) rowData[column.dataKey] = currencyFormat(totalCost);
+        if (columnIndex == 6) rowData[column.dataKey] = currencyFormat(marketValue);
+        if (columnIndex == 7) rowData[column.dataKey] = decimalFormat(changePL);
+        if (columnIndex == 8) rowData[column.dataKey] = percentFormat(changePercPL);
 
         return rowData;
       },
@@ -173,42 +173,173 @@ const generateData = (columns: ColumnShape[], data: Trade[], symbols: string[]) 
     );
   });
 
-const rowRenderer = ({ isScrolling, cells }: RowRendererParams) => {
-  if (isScrolling) return <LoadingCell>Loading</LoadingCell>;
+const rowRenderer = ({ isScrolling, cells, rowData }: RowRendererParams) => {
+  if (isScrolling) {
+    return cells.map((x, index) => {
+      return (
+        <div
+          key={index}
+          role="gridcell"
+          className="BaseTable__row-cell"
+          style={(x as React.ReactElement).props.style}
+        >
+          <div className={classNames("BaseTable__row-cell-text", Classes.SKELETON)}>
+            {rowData[`column-${index}`]}
+          </div>
+        </div>
+      );
+    });
+  }
 
   return cells;
 };
 
-const JournalTable = ({ journalId }: JournalCommonProps) => {
+const AddRenameSuccessToaster = Toaster.create({
+  position: Position.TOP,
+});
+
+const showSuccessToast = () => {
+  AddRenameSuccessToaster.show({
+    intent: Intent.SUCCESS,
+    message: "Successfully renamed journal!",
+  });
+};
+
+const JournalTable = ({ journal }: { journal: Journal }) => {
+  const [renameJournal] = useMutation(M.MutationRenameJournal, {
+    onCompleted: () => {
+      showSuccessToast();
+    },
+  });
   const internalSymbols = useReactiveVar(internalSymbolsVar);
   const [addTradeDialogIsOpen, setAddTradeDialogIsOpen] = useState(false);
-  const { loading, error, data, refetch, networkStatus } = useQuery(Q.QueryTradesActive, {
-    variables: { id: journalId },
+  const [currentJournalName, setCurrentJournalName] = useState(journal.name);
+  const tradesActiveQuery = useQuery(Q.QueryTradesActive, {
+    variables: { id: journal.id },
     notifyOnNetworkStatusChange: true,
   });
+  const latestStockDataQuery = useQuery(Q.QueryLatestStockData);
 
-  if (error) return <div>Error!</div>;
-  if (loading || networkStatus === NetworkStatus.refetch) return <SpinnerLoadExpanded />;
+  if (tradesActiveQuery.error && latestStockDataQuery.error) return <div>Error!</div>;
+  if (
+    latestStockDataQuery.loading ||
+    tradesActiveQuery.loading ||
+    tradesActiveQuery.networkStatus === NetworkStatus.refetch
+  )
+    return <SpinnerLoadExpanded />;
 
-  const { activeTrades } = data as LocalQueryTrades;
-  const items = generateData(columns, activeTrades, internalSymbols);
+  const { activeTrades } = tradesActiveQuery.data as LocalQueryActiveTrades;
+  const { latestStockData } = latestStockDataQuery.data as LocalQueryLatestStockData;
+
+  const totalEquity = activeTrades
+    .map((x) => {
+      const symbol = internalSymbols[parseInt(x.stockId)];
+      const shares = x.shares;
+      const trades = latestStockData.find((y) => y.symbol === symbol);
+      const result = shares * trades!.close;
+      log.trace(result);
+
+      return result;
+    })
+    .reduce((total, num) => total + num);
+
+  const items = generateData(columns, activeTrades, internalSymbols, latestStockData);
 
   const handleAddTradeDialogOpen = () => setAddTradeDialogIsOpen(true);
   const handleAddTradeDialogClose = () => setAddTradeDialogIsOpen(false);
   const handleAddTradeDialogCloseSuccess = () => {
     setAddTradeDialogIsOpen(false);
-    refetch();
+    tradesActiveQuery.refetch();
   };
+  const handleJournalNameChange = (value: string) => setCurrentJournalName(value);
+
+  const onJournalRenameConfirm = async (value: string) => {
+    await renameJournal({
+      variables: {
+        input: {
+          id: journal.id,
+          name: value,
+        },
+      },
+    });
+  };
+
+  const porfolioDetails = [
+    {
+      name: "Total Realized Profits",
+      value: currencyFormat(0.0),
+    },
+    {
+      name: "Total Realized Profits (%)",
+      value: percentFormat(0.0),
+    },
+    {
+      name: "Total Current Cost",
+      value: currencyFormat(0.0),
+    },
+    {
+      name: "Total Current Market Value",
+      value: currencyFormat(0.0),
+    },
+    {
+      name: "Total Current Profit/Loss",
+      value: decimalFormat(0.0),
+    },
+    {
+      name: "Total Current Profit/Loss (%)",
+      value: percentFormat(0.0),
+    },
+  ];
+
+  const portfolioDetailsComponents = porfolioDetails.map((x, index) => {
+    return (
+      <tr key={index}>
+        <CustomTd className={classNames(Classes.TEXT_SMALL)}>{x.name}</CustomTd>
+        <CustomTd
+          className={classNames(Classes.TEXT_SMALL)}
+          style={{ textAlign: "right" }}
+        >
+          {x.value}
+        </CustomTd>
+      </tr>
+    );
+  });
 
   return (
     <section>
       <SplitContainer>
         <InnerContainer>
-          Hello
+          <div className={classNames(Classes.TEXT_SMALL)}>
+            Philippine Stock Exchange (PSE)
+          </div>
+          <H3 style={{ marginTop: "5px", marginBottom: "20px" }}>
+            <EditableText
+              alwaysRenderInput={false}
+              maxLength={12}
+              placeholder="Edit journal name..."
+              selectAllOnFocus={false}
+              value={currentJournalName}
+              onChange={handleJournalNameChange}
+              onConfirm={onJournalRenameConfirm}
+            />
+          </H3>
+          <div className={classNames(Classes.TEXT_SMALL)}>Total Equity</div>
+          <H4 style={{ marginTop: "5px" }}>{currencyFormat(totalEquity)}</H4>
+          <div className={classNames(Classes.TEXT_SMALL)}>Available Cash</div>
+          <H4 style={{ marginTop: "5px" }}>{currencyFormat(0.0)}</H4>
         </InnerContainer>
         <InnerContainer>
-          Hello
-        </InnerContainer>        
+          <H5>Portfolio Details</H5>
+          <HTMLTable
+            style={{ width: "100%" }}
+            bordered={false}
+            condensed={true}
+            striped={true}
+            interactive={true}
+          >
+            <tbody>{portfolioDetailsComponents}</tbody>
+          </HTMLTable>
+        </InnerContainer>
       </SplitContainer>
       <JournalButtonContainer>
         <Button icon={IconNames.MANUALLY_ENTERED_DATA} onClick={handleAddTradeDialogOpen}>
@@ -225,7 +356,10 @@ const JournalTable = ({ journalId }: JournalCommonProps) => {
           usePortal={true}
           onClose={handleAddTradeDialogClose}
         >
-          <AddTradeForm journalId={journalId} closeCb={handleAddTradeDialogCloseSuccess} />
+          <AddTradeForm
+            journalId={journal.id}
+            closeCb={handleAddTradeDialogCloseSuccess}
+          />
         </Dialog>
       </JournalButtonContainer>
       <TabContent>
@@ -295,7 +429,7 @@ export const AppJournal = () => {
         key={x.id}
         title={truncateName}
         panelClassName="custom-tab-panel-container"
-        panel={<JournalTable journalId={x.id} />}
+        panel={<JournalTable journal={x} />}
       />
     );
   });

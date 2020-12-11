@@ -70,11 +70,22 @@ const AddTradeSuccessToaster = Toaster.create({
   position: Position.TOP,
 });
 
+const showSuccessToast = () => {
+  AddTradeSuccessToaster.show({
+    intent: Intent.SUCCESS,
+    message: "Successfully added new trade transaction!",
+  });
+};
+
 export const AddTradeForm = ({
   journalId,
   closeCb,
 }: JournalCommonProps & DialogCloseHandleProps) => {
-  const [addTradeTransaction] = useMutation(M.MutationAddTradeTransaction);
+  const [addTradeTransaction] = useMutation(M.MutationAddTradeTransaction, {
+    onCompleted: () => {
+      showSuccessToast();
+    },
+  });
   const internalSymbols = useReactiveVar(internalSymbolsVar);
   const [formValues, setFormValues] = useState<AddTradeFormState>({
     journalId: journalId,
@@ -167,13 +178,6 @@ export const AddTradeForm = ({
     setFormValues({ ...formValues, transactionDate: moment(selectedDate).unix() * 1000 });
   };
 
-  const showSuccessToast = () => {
-    AddTradeSuccessToaster.show({
-      intent: Intent.SUCCESS,
-      message: "Successfully added new trade transaction!",
-    });
-  };
-
   const onSubmit = async () => {
     calculateForm();
     await addTradeTransaction({
@@ -194,7 +198,6 @@ export const AddTradeForm = ({
     });
 
     closeCb();
-    showSuccessToast();
   };
 
   const tradeActions = ["BUY", "SELL", "STOCK DIV", "IPO"];
@@ -251,7 +254,7 @@ export const AddTradeForm = ({
             buttonPosition="none"
             placeholder="Enter the price..."
             minorStepSize={0.00001}
-            leftIcon={IconNames.DOLLAR}
+            leftIcon={IconNames.EURO}
             value={formValues.grossPrice}
             name="grossPrice"
             inputRef={register({ required: true })}
@@ -279,7 +282,7 @@ export const AddTradeForm = ({
         >
           <ControlGroup fill={true}>
             <div className={classNames(Classes.INPUT_GROUP)}>
-              <Icon icon={IconNames.DOLLAR} />
+              <Icon icon={IconNames.EURO} />
               <RightTextAlignContanier
                 className={classNames(Classes.INPUT, Classes.DISABLED)}
               >
@@ -294,7 +297,7 @@ export const AddTradeForm = ({
         >
           <ControlGroup fill={true}>
             <div className={classNames(Classes.INPUT_GROUP)}>
-              <Icon icon={IconNames.DOLLAR} />
+              <Icon icon={IconNames.EURO} />
               <RightTextAlignContanier
                 className={classNames(Classes.INPUT, Classes.DISABLED)}
               >
@@ -306,7 +309,7 @@ export const AddTradeForm = ({
         <FormGroup label="Total Net Amount" helperText="The amount to be earned.">
           <ControlGroup fill={true}>
             <div className={classNames(Classes.INPUT_GROUP)}>
-              <Icon icon={IconNames.DOLLAR} />
+              <Icon icon={IconNames.EURO} />
               <RightTextAlignContanier
                 className={classNames(Classes.INPUT, Classes.DISABLED)}
               >
