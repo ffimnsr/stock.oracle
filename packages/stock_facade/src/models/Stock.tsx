@@ -17,7 +17,7 @@ export type StockDataItem = {
   high: number;
   low: number;
   close: number;
-  volume: number;
+  volume: number | undefined;
 };
 
 export type LatestStockDataItem = {

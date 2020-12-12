@@ -3,25 +3,35 @@ import log from "loglevel";
 import { useQuery, useReactiveVar } from "@apollo/client";
 import Highcharts, { Options as HighchartsOptions } from "highcharts/highstock";
 import HighchartsReact from "highcharts-react-official";
+import HSIndicators from "highcharts/indicators/indicators-all";
+import HSTheme from "highcharts/themes/grid-light";
 import { globalStateVar } from "@/Cache";
 import { StockDataItem } from "@/models";
 import Q from "@/operations/queries";
 
-export const StockChart = () => {
+HSIndicators(Highcharts);
+HSTheme(Highcharts);
+
+export const StockChart = React.memo(() => {
   const globalState = useReactiveVar(globalStateVar);
   const { symbol, name } = globalState.currentStock;
   const { loading, error, data } = useQuery(Q.QueryStockData, {
     variables: { symbol },
+    fetchPolicy: "no-cache",
   });
-  const chart = React.createRef<any>();
+
+  const chartRef = React.createRef<any>();
 
   if (error) return <div>Error!</div>;
 
   useEffect(() => {
-    const chartObj = (chart.current as any).chart;
+    const currentChart = chartRef.current;
+    if (currentChart) {
+      const chartObj = currentChart.chart;
 
-    chartObj.hideLoading();
-    if (loading) chartObj.showLoading();
+      chartObj.hideLoading();
+      if (loading) chartObj.showLoading();
+    }
   }, [loading]);
 
   const ohlc = loading
@@ -34,17 +44,18 @@ export const StockChart = () => {
         close: x.close,
       }));
 
-  const volume = loading
+  const navigator = loading
     ? []
     : data.stockData.map((x: StockDataItem) => ({
         x: x.date,
-        y: x.volume,
+        y: x.close,
       }));
 
   const options: HighchartsOptions = {
     chart: { height: 900 },
     credits: { enabled: false },
     scrollbar: { enabled: false },
+    tooltip: { enabled: false },
     title: {
       text: `${name.toUpperCase()} (${symbol.toUpperCase()})`,
       align: "left",
@@ -54,52 +65,42 @@ export const StockChart = () => {
         top: "40%",
       },
     },
+    navigator: {
+      adaptToUpdatedData: true,
+      height: 90,
+      series: {
+        data: navigator,
+        dataGrouping: { smoothed: true },
+      },
+    },
+    rangeSelector: {
+      selected: 5,
+    },
     yAxis: [
       {
         labels: {
           align: "left",
+          x: 30,
         },
-        height: "70%",
-      },
-      {
-        labels: {
-          align: "left",
-        },
-        top: "72%",
-        height: "28%",
-        offset: 0,
+        height: "100%",
+        width: "99%",
       },
     ],
     series: [
       {
         type: "candlestick",
         name: name.toUpperCase(),
+        id: `chart-${symbol.toLowerCase()}`,
         data: ohlc,
+        color: "#ff6962",
+        lineColor: "#ff6962",
+        upColor: "#56c7d0",
+        upLineColor: "#56c7d0",        
         dataGrouping: {
           groupPixelWidth: 20,
-          units: [
-            ["day", [1, 2, 3, 4]],
-            ["week", [1, 2, 3, 6]],
-            ["month", [1, 2, 3, 6, 9]],
-          ],
+          approximation: "ohlc",
         },
-        tooltip: {
-          valueDecimals: 2,
-        },
-      },
-      {
-        type: "column",
-        name: "Volume",
-        data: volume,
-        yAxis: 1,
-        dataGrouping: {
-          groupPixelWidth: 20,
-          units: [
-            ["day", [1, 2, 3, 4]],
-            ["week", [1, 2, 3, 6]],
-            ["month", [1, 2, 3, 6, 9]],
-          ],
-        },
+        navigatorOptions: { showInNavigator: false },
       },
     ],
   };
@@ -109,7 +110,7 @@ export const StockChart = () => {
       highcharts={Highcharts}
       constructorType={"stockChart"}
       options={options}
-      ref={chart}
+      ref={chartRef}
     />
   );
-};
+});

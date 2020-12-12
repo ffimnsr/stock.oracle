@@ -231,10 +231,10 @@ const JournalTable = ({ journal }: { journal: Journal }) => {
   const { activeTrades } = tradesActiveQuery.data as LocalQueryActiveTrades;
   const { latestStockData } = latestStockDataQuery.data as LocalQueryLatestStockData;
 
-  const totalEquity = activeTrades
+  const totalCurrentMarketValue = activeTrades
     .map((x) => {
-      const symbol = internalSymbols[parseInt(x.stockId)];
-      const shares = x.shares;
+      const { stockId, shares } = x;
+      const symbol = internalSymbols[parseInt(stockId)];
       const trades = latestStockData.find((y) => y.symbol === symbol);
       const result = shares * trades!.close;
       log.trace(result);
@@ -242,6 +242,18 @@ const JournalTable = ({ journal }: { journal: Journal }) => {
       return result;
     })
     .reduce((total, num) => total + num);
+
+  const totalCurrentCost = activeTrades
+    .map((x) => {
+      const { shares, avgBuyPrice } = x;
+      const result = shares * avgBuyPrice;
+      log.trace(result);
+
+      return result;
+    })
+    .reduce((total, num) => total + num); 
+    
+  const totalCurrentPL = totalCurrentMarketValue - totalCurrentCost;
 
   const items = generateData(columns, activeTrades, internalSymbols, latestStockData);
 
@@ -275,15 +287,15 @@ const JournalTable = ({ journal }: { journal: Journal }) => {
     },
     {
       name: "Total Current Cost",
-      value: currencyFormat(0.0),
+      value: currencyFormat(totalCurrentCost),
     },
     {
       name: "Total Current Market Value",
-      value: currencyFormat(0.0),
+      value: currencyFormat(totalCurrentMarketValue),
     },
     {
       name: "Total Current Profit/Loss",
-      value: decimalFormat(0.0),
+      value: decimalFormat(totalCurrentPL),
     },
     {
       name: "Total Current Profit/Loss (%)",
@@ -324,7 +336,7 @@ const JournalTable = ({ journal }: { journal: Journal }) => {
             />
           </H3>
           <div className={classNames(Classes.TEXT_SMALL)}>Total Equity</div>
-          <H4 style={{ marginTop: "5px" }}>{currencyFormat(totalEquity)}</H4>
+          <H4 style={{ marginTop: "5px" }}>{currencyFormat(totalCurrentMarketValue)}</H4>
           <div className={classNames(Classes.TEXT_SMALL)}>Available Cash</div>
           <H4 style={{ marginTop: "5px" }}>{currencyFormat(0.0)}</H4>
         </InnerContainer>

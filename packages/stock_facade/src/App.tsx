@@ -23,7 +23,7 @@ import {
   NonIdealState,
 } from "@blueprintjs/core";
 import Highcharts from "highcharts/highstock";
-import NoDataToDisplay from "highcharts/modules/no-data-to-display";
+import HSNoDataToDisplay from "highcharts/modules/no-data-to-display";
 import styled from "styled-components";
 import { useHistory } from "react-router-dom";
 import { StockChart } from "@/components/StockChart";
@@ -37,7 +37,7 @@ import { AppJournal } from "@/Journal";
 import { AppStocksOverview } from "@/StocksOverview";
 
 FocusStyleManager.onlyShowFocusOnTabs();
-NoDataToDisplay(Highcharts);
+HSNoDataToDisplay(Highcharts);
 
 const CustomStockSuggestContainer = styled.div`
   margin-left: 30px;

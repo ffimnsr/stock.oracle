@@ -30,7 +30,7 @@ export const cache: InMemoryCache = new InMemoryCache({
 export const globalStateVar: ReactiveVar<GlobalState> = makeVar<GlobalState>({
   currentStock: {
     name: "SM PRIME HOLDINGS, INC.",
-    symbol: "SMPH",
+    symbol: "ACEN",
   },
 });
 

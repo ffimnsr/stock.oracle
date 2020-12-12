@@ -1,7 +1,5 @@
-import express, { Request, Response } from "express";
-// import cors from "cors";
+import express, { NextFunction, Request, Response } from "express";
 import bodyParser from "body-parser";
-// import morgan from "morgan";
 import compression from "compression";
 import responseTime from "response-time";
 import basicAuth from "express-basic-auth";
@@ -11,6 +9,8 @@ import knex from "knex";
 import moment from "moment";
 import _ from "lodash";
 import { isMainThread, Worker } from "worker_threads";
+import bunyan from "bunyan";
+import vary from "vary";
 import {
   isProduction,
   ENVIRONMENT,
@@ -29,6 +29,14 @@ import resolvers from "./resolvers";
 log.setLevel(isProduction() ? log.levels.INFO : log.levels.DEBUG);
 log.info("Current environment:", ENVIRONMENT);
 log.info("Current stock data table:", STOCK_DATA_TABLE);
+
+const bun = bunyan.createLogger({
+  name: "stock-oracle",
+  serializers: {
+    req: bunyan.stdSerializers.req,
+    res: bunyan.stdSerializers.res,
+  },
+});
 
 const client = knex({
   client: "mysql",
@@ -73,15 +81,34 @@ const server = new ApolloServer({
 const app = express();
 
 app.set("dao", client);
-// app.use(
-//   cors({
-//     credentials: true,
-//     origin: true,
-//     methods: ["GET", "POST"],
-//     allowedHeaders: ["Content-Type", "Authorization"],
-//     maxAge: 600,
-//   })
-// );
+app.use((req: Request, res: Response, next: NextFunction) => {
+  let method = req.method && req.method.toUpperCase && req.method.toUpperCase();  
+  const origin = req.headers.origin ?? "http://localhost:4000";
+
+  if (method === 'OPTIONS') {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    vary(res, "Origin");
+    res.setHeader("Access-Control-Allow-Credentials", "true");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    res.setHeader("Access-Control-Max-Age", "600");
+    
+    res.statusCode = 204;
+    res.setHeader('Content-Length', '0');
+    res.end();
+  } else {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    vary(res, "Origin");
+    res.setHeader("Access-Control-Allow-Credentials", "true");
+    next();
+  }
+});
+
+app.use((req: Request, res: Response, next: NextFunction) => {
+  bun.info({ req });
+  res.on("finish", () => bun.info(res));
+  next();
+});
 
 if (isProduction()) {
   app.use(
@@ -95,7 +122,6 @@ if (isProduction()) {
 
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
-// app.use(morgan("dev"));
 app.use(compression());
 app.use(responseTime());
 

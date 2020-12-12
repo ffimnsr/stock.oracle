@@ -25,10 +25,12 @@ module.exports = merge(common, {
   },
   output: {
     path: path.resolve(__dirname, "./dist/release/"),
-  },  
+  },
   plugins: [
     new CleanWebpackPlugin(),
-    new DotenvWebpack(),
+    new DotenvWebpack({
+      path: "./.env.production",
+    }),
     new webpack.EnvironmentPlugin({
       NODE_ENV: "production",
     }),
